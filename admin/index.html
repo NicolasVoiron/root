@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Admin PRO</title>
+<style>
+body{font-family:system-ui;margin:20px}
+input,button{padding:6px;margin:4px}
+.card{border:1px solid #ccc;padding:10px;margin-top:10px}
+</style></head>
+<body>
+<h1>Admin PRO – Carrousel</h1>
+
+<h2>Publication</h2>
+<input id="repo" placeholder="https://github.com/user/repo.git" size="50">
+<button onclick="saveSettings()">Enregistrer repo</button>
+<button onclick="publish()">Publier</button>
+
+<h2>Ajouter un site</h2>
+<input id="url" placeholder="https://..." size="50">
+<input id="dur" type="number" value="15"> s
+<button onclick="addSite()">Ajouter</button>
+
+<h2>Sites</h2>
+<div id="list"></div>
+
+<script>
+async function load(){
+ const s=await fetch('/api/state').then(r=>r.json());
+ document.getElementById('repo').value=s.settings.repo||'';
+ const l=document.getElementById('list'); l.innerHTML='';
+ s.targets.forEach(t=>{
+  const d=document.createElement('div'); d.className='card';
+  d.innerHTML=`<div>${t.url}</div>
+  <button onclick="test('${t.id}')">📸 Test</button>
+  <button onclick="del('${t.id}')">Supprimer</button>`;
+  l.appendChild(d);
+ })
+}
+
+async function saveSettings(){
+ await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repo:repo.value})});
+ alert('Repo enregistré');
+}
+async function publish(){await fetch('/api/publish',{method:'POST'});alert('Publié');}
+async function addSite(){await fetch('/api/targets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url.value,durationSec:dur.value})});url.value='';load();}
+async function del(id){await fetch('/api/targets/'+id,{method:'DELETE'});load();}
+async function test(id){await fetch('/api/capture/'+id,{method:'POST'});alert('Capture OK');}
+load();
+</script>
+</body></html>
