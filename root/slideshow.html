@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Carrousel - Défaut</title>
+<style>
+html,body{height:100%;margin:0}
+body{background:#000;color:#fff;font-family:system-ui,Segoe UI,Roboto,Arial}
+.slide{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+.slide img{max-width:100%;max-height:100%;object-fit:contain}
+.caption{position:fixed;left:0;right:0;bottom:0;padding:8px 12px;background:rgba(0,0,0,.35);font-size:14px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="caption" id="cap"></div>
+<script>
+async function run(){
+  const res = await fetch('./latest.json?_=' + Date.now());
+  const data = await res.json();
+  const items = data.images || [];
+  if (!items.length){ document.body.innerHTML='<p style="color:#fff;padding:16px">Aucune image disponible pour ce canal.</p>'; return; }
+  const root = document.getElementById('root');
+  const cap = document.getElementById('cap');
+  let i=0;
+  async function show(){
+    const it = items[i % items.length];
+    root.innerHTML = '<div class="slide"><img src="'+it.src+'"/></div>';
+    cap.textContent = it.title||'';
+    const d = Number(it.duration||10)*1000;
+    setTimeout(()=>{ i++; show(); }, d);
+  }
+  show();
+}
+run();
+</script>
+</body></html>
