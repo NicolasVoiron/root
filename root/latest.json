@@ -1,4 +1,10 @@
 {
-  "generatedAt": "2026-02-08T08:37:59.268Z",
-  "images": []
+  "generatedAt": "2026-02-08T08:42:43.317Z",
+  "images": [
+    {
+      "src": "images/test_1770539960174_7c01f451-9a02-4b63-9400-d13e0e49c4a2.jpg",
+      "duration": 10,
+      "title": "tt"
+    }
+  ]
 }
