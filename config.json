@@ -1,22 +1,21 @@
 {
     "channels": {
-        "support": {
+        "bureau": {
             "sites": [
                 {
                     "url": "https://se.aubenas.kamishibaii.prod-eo.com/taskManager?taskmanagerid=685bb5cf068e9b000c53565a",
                     "zoom": 100,
-                    "wait_time": 30,
+                    "wait_time": 25,
                     "display_time": 30,
-                    "split": 3,
-                    "last_update": "18:41:11"
+                    "split": 2,
+                    "last_update": "19:32:25"
                 },
                 {
-                    "url": "http://10.192.43.139:1880/ui",
-                    "zoom": 65,
+                    "url": "",
+                    "zoom": 100,
                     "wait_time": 10,
                     "display_time": 30,
-                    "split": 1,
-                    "last_update": "18:41:23"
+                    "split": 1
                 }
             ]
         }

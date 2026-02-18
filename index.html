@@ -1,87 +1,74 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>FactoryCast Public Display</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; }
-        #viewer-container { display: flex; width: 100%; height: 100%; transition: opacity 0.8s ease-in-out; opacity: 0; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1a1a1a; font-family: sans-serif; }
+        #viewer-container { display: flex; width: 100%; height: 100%; transition: opacity 0.8s; opacity: 0; }
         .pane { flex: 1; background-size: contain; background-repeat: no-repeat; background-position: center; border-right: 1px solid rgba(255,255,255,0.05); }
-        #progress-bar { position: fixed; bottom: 0; left: 0; width: 0%; height: 6px; background: #3dcd58; z-index: 1000; box-shadow: 0 0 15px #3dcd58; }
-        #info-badge { position: fixed; top: 15px; right: 15px; color: #3dcd58; background: rgba(0,0,0,0.8); padding: 8px 18px; border-radius: 30px; font-size: 13px; border: 1px solid #3dcd58; z-index: 1000; display: flex; align-items: center; gap: 10px; }
-        .dot { width: 8px; height: 8px; background: #3dcd58; border-radius: 50%; animation: blink 1s infinite; }
-        @keyframes blink { 0% { opacity: 0.2; } 50% { opacity: 1; } 100% { opacity: 0.2; } }
+        #progress-bar { position: fixed; bottom: 0; left: 0; width: 0%; height: 4px; background: #3dcd58; z-index: 1000; }
+        /* Badge ultra-discret en bas à droite */
+        #update-badge { position: fixed; bottom: 10px; right: 15px; color: rgba(255,255,255,0.3); font-size: 10px; z-index: 1001; letter-spacing: 1px; }
     </style>
 </head>
 <body>
-    <div id="info-badge"><div class="dot"></div> <span id="status-text">Synchronisation...</span></div>
     <div id="viewer-container"></div>
     <div id="progress-bar"></div>
+    <div id="update-badge">SYNC...</div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const canal = params.get('canal') || 'bureau';
-        let images = [], index = 0;
+        let sites = [], index = 0;
 
-        async function fetchConfig() {
+        async function update() {
             try {
-                const res = await fetch('config.json?nocache=' + Date.now());
+                const res = await fetch('config.json?t=' + Date.now());
                 const data = await res.json();
                 if (data.channels[canal]) {
-                    images = data.channels[canal].sites.map((s, i) => ({
-                        parts: s.split || 1,
-                        dur: (s.display_time || 30) * 1000,
-                        id: i,
-                        updated: s.last_update || '--:--'
-                    }));
+                    sites = data.channels[canal].sites;
                     if (index === 0) rotate();
                 }
-            } catch (e) {
-                document.getElementById('status-text').innerText = "ERREUR DE CONNEXION GITHUB";
-                setTimeout(fetchConfig, 5000);
-            }
+            } catch (e) { setTimeout(update, 5000); }
         }
 
         function rotate() {
-            if (images.length === 0) return;
+            if (sites.length === 0) return;
             const container = document.getElementById('viewer-container');
             const pb = document.getElementById('progress-bar');
-            const current = images[index];
-
-            // Mise à jour de l'heure en haut à droite
-            document.getElementById('status-text').innerText = `${canal.toUpperCase()} | MAJ : ${current.updated}`;
+            const badge = document.getElementById('update-badge');
+            const s = sites[index];
 
             container.style.opacity = 0;
             
             setTimeout(() => {
                 container.innerHTML = '';
-                for(let p=0; p < current.parts; p++) {
+                // On crée les colonnes SPLIT ensemble pour UN SEUL site
+                for(let p=0; p < s.split; p++) {
                     const div = document.createElement('div');
                     div.className = 'pane';
-                    // Anti-cache par timestamp
-                    div.style.backgroundImage = `url('docs/screens/${canal}_${current.id}_p${p}.png?v=${Date.now()}')`;
+                    div.style.backgroundImage = `url('docs/screens/${canal}_${index}_p${p}.png?v=${Date.now()}')`;
                     container.appendChild(div);
                 }
+                
+                badge.innerText = `MAJ: ${s.last_update || '--:--'}`;
                 container.style.opacity = 1;
 
-                // Animation de la barre verte
                 pb.style.transition = 'none';
                 pb.style.width = '0%';
                 setTimeout(() => {
-                    pb.style.transition = `width ${current.dur}ms linear`;
+                    pb.style.transition = `width ${s.display_time * 1000}ms linear`;
                     pb.style.width = '100%';
                 }, 50);
 
                 setTimeout(() => {
-                    index = (index + 1) % images.length;
-                    // On recharge la config à chaque cycle complet
-                    if (index === 0) fetchConfig();
+                    index = (index + 1) % sites.length;
+                    if (index === 0) update();
                     rotate();
-                }, current.dur);
+                }, s.display_time * 1000);
             }, 800);
         }
-
-        fetchConfig();
+        update();
     </script>
 </body>
 </html>
