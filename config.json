@@ -16,13 +16,6 @@
                     "wait_time": 10,
                     "display_time": 30,
                     "split": 1
-                },
-                {
-                    "url": "",
-                    "zoom": 100,
-                    "wait_time": 10,
-                    "display_time": 30,
-                    "split": 1
                 }
             ]
         }
