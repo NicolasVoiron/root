@@ -3,16 +3,16 @@
         "bureau": {
             "sites": [
                 {
-                    "url": "http://10.192.43.139:1880/ui",
-                    "zoom": 50,
-                    "wait_time": 10,
-                    "display_time": 30,
+                    "url": "https://se.aubenas.kamishibaii.prod-eo.com/taskManager?taskmanagerid=685bb5cf068e9b000c53565a",
+                    "zoom": 100,
+                    "wait_time": 20,
+                    "display_time": 60,
                     "active": true
                 },
                 {
-                    "url": "https://se.aubenas.kamishibaii.prod-eo.com/taskManager?taskmanagerid=685bb5cf068e9b000c53565a",
-                    "zoom": 80,
-                    "wait_time": 30,
+                    "url": "http://10.192.43.139:1880/ui",
+                    "zoom": 100,
+                    "wait_time": 10,
                     "display_time": 30,
                     "active": true
                 }
