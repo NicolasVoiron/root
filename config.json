@@ -8,7 +8,7 @@
                     "wait_time": 60,
                     "display_time": 15,
                     "split": 2,
-                    "last_update": "21:08:56"
+                    "last_update": "21:13:12"
                 },
                 {
                     "url": "http://10.192.43.139:1880/ui/",
@@ -16,7 +16,7 @@
                     "wait_time": 10,
                     "display_time": 20,
                     "split": 1,
-                    "last_update": "21:09:08"
+                    "last_update": "21:13:27"
                 }
             ]
         }
