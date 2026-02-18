@@ -3,47 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1a1a1a; font-family: sans-serif; }
-        #viewer-container { display: flex; width: 100%; height: 100%; transition: opacity 0.8s; opacity: 0; }
-        .pane { flex: 1; background-size: contain; background-repeat: no-repeat; background-position: center; border-right: 1px solid rgba(255,255,255,0.05); }
-        #progress-bar { position: fixed; bottom: 0; left: 0; width: 0%; height: 4px; background: #3dcd58; z-index: 1000; }
-        /* Badge ultra-discret en bas à droite */
-        #update-badge { position: fixed; bottom: 10px; right: 15px; color: rgba(255,255,255,0.3); font-size: 10px; z-index: 1001; letter-spacing: 1px; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #111; font-family: 'Segoe UI', sans-serif; }
+        #viewer-container { display: flex; width: 100%; height: 100%; transition: opacity 0.6s ease; opacity: 0; }
+        .pane { flex: 1; background-size: contain; background-repeat: no-repeat; background-position: center; }
+        #progress-bar { position: fixed; bottom: 0; left: 0; width: 0%; height: 3px; background: #3dcd58; z-index: 1000; }
+        /* Badge ultra discret */
+        #update-info { position: fixed; bottom: 8px; right: 12px; color: rgba(255,255,255,0.15); font-size: 9px; z-index: 1001; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
     <div id="viewer-container"></div>
     <div id="progress-bar"></div>
-    <div id="update-badge">SYNC...</div>
+    <div id="update-info">Sync...</div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const canal = params.get('canal') || 'bureau';
         let sites = [], index = 0;
 
-        async function update() {
+        async function refreshConfig() {
             try {
-                const res = await fetch('config.json?t=' + Date.now());
-                const data = await res.json();
-                if (data.channels[canal]) {
-                    sites = data.channels[canal].sites;
-                    if (index === 0) rotate();
+                const r = await fetch('config.json?nocache=' + Date.now());
+                const d = await r.json();
+                if (d.channels[canal]) {
+                    sites = d.channels[canal].sites;
+                    if (index === 0) startRotation();
                 }
-            } catch (e) { setTimeout(update, 5000); }
+            } catch (e) { setTimeout(refreshConfig, 5000); }
         }
 
-        function rotate() {
+        function startRotation() {
             if (sites.length === 0) return;
             const container = document.getElementById('viewer-container');
             const pb = document.getElementById('progress-bar');
-            const badge = document.getElementById('update-badge');
+            const badge = document.getElementById('update-info');
             const s = sites[index];
 
             container.style.opacity = 0;
             
             setTimeout(() => {
                 container.innerHTML = '';
-                // On crée les colonnes SPLIT ensemble pour UN SEUL site
+                // Rendu des splits côte à côte
                 for(let p=0; p < s.split; p++) {
                     const div = document.createElement('div');
                     div.className = 'pane';
@@ -51,11 +51,11 @@
                     container.appendChild(div);
                 }
                 
-                badge.innerText = `MAJ: ${s.last_update || '--:--'}`;
+                badge.innerText = `Update: ${s.last_update || '--:--'}`;
                 container.style.opacity = 1;
 
-                pb.style.transition = 'none';
-                pb.style.width = '0%';
+                // Reset & Animation barre de progression
+                pb.style.transition = 'none'; pb.style.width = '0%';
                 setTimeout(() => {
                     pb.style.transition = `width ${s.display_time * 1000}ms linear`;
                     pb.style.width = '100%';
@@ -63,12 +63,12 @@
 
                 setTimeout(() => {
                     index = (index + 1) % sites.length;
-                    if (index === 0) update();
-                    rotate();
+                    if (index === 0) refreshConfig();
+                    startRotation();
                 }, s.display_time * 1000);
-            }, 800);
+            }, 600);
         }
-        update();
+        refreshConfig();
     </script>
 </body>
 </html>
