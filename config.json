@@ -9,18 +9,18 @@
                     "display_time": 30,
                     "split": 2,
                     "refresh_freq": 1,
-                    "last_update_time": 1771450821.7925353,
-                    "last_update_str": "22:40:21"
+                    "last_update_time": 1771450995.0019433,
+                    "last_update_str": "22:43:15"
                 },
                 {
                     "url": "http://10.192.43.139:1880/ui/",
-                    "zoom": 67,
+                    "zoom": 100,
                     "wait_time": 15,
                     "display_time": 30,
                     "split": 1,
                     "refresh_freq": 1,
-                    "last_update_time": 1771450841.3684497,
-                    "last_update_str": "22:40:41"
+                    "last_update_time": 1771451014.210117,
+                    "last_update_str": "22:43:34"
                 }
             ]
         }
