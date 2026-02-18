@@ -5,16 +5,16 @@
                 {
                     "url": "https://se.aubenas.kamishibaii.prod-eo.com/taskManager?taskmanagerid=685bb5cf068e9b000c53565a",
                     "zoom": 100,
-                    "wait_time": 45,
+                    "wait_time": 60,
                     "display_time": 15,
                     "split": 2,
                     "last_update": "20:16:17"
                 },
                 {
                     "url": "http://10.192.43.139:1880/ui/",
-                    "zoom": 100,
+                    "zoom": 67,
                     "wait_time": 10,
-                    "display_time": 30,
+                    "display_time": 15,
                     "split": 1,
                     "last_update": "20:16:28"
                 }
