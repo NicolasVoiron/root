@@ -1,40 +1,38 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
     <meta charset="UTF-8">
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1a1a1a; font-family: sans-serif; }
-        #viewer-container { display: flex; width: 100%; height: 100%; transition: opacity 0.8s; }
-        .pane { flex: 1; background-size: contain; background-repeat: no-repeat; background-position: center; border-right: 1px solid rgba(255,255,255,0.1); }
-        #progress-bar { position: fixed; bottom: 0; left: 0; width: 0%; height: 6px; background: #3dcd58; box-shadow: 0 0 10px #3dcd58; z-index: 1000; }
-        #status { position: fixed; top: 10px; right: 10px; color: #3dcd58; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px; font-size: 12px; border: 1px solid #3dcd58; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1a1a1a; }
+        #viewer-container { display: flex; width: 100%; height: 100%; transition: opacity 0.8s; opacity: 0; }
+        .pane { flex: 1; background-size: contain; background-repeat: no-repeat; background-position: center; border-right: 1px solid rgba(255,255,255,0.05); }
+        #progress-bar { position: fixed; bottom: 0; left: 0; width: 0%; height: 6px; background: #3dcd58; z-index: 1000; box-shadow: 0 0 10px #3dcd58; }
+        #info { position: fixed; top: 10px; right: 10px; color: #3dcd58; background: rgba(0,0,0,0.7); padding: 6px 15px; border-radius: 20px; font-family: sans-serif; font-size: 12px; border: 1px solid #3dcd58; z-index: 1000; }
     </style>
 </head>
 <body>
-    <div id="status">Sync...</div>
+    <div id="info">Chargement...</div>
     <div id="viewer-container"></div>
     <div id="progress-bar"></div>
-
     <script>
         const params = new URLSearchParams(window.location.search);
         const canal = params.get('canal') || 'bureau';
         let images = [], index = 0;
 
-        async function update() {
+        async function fetchConfig() {
             try {
-                const res = await fetch('config.json?t=' + Date.now());
+                const res = await fetch('config.json?v=' + Date.now());
                 const data = await res.json();
-                const chan = data.channels[canal];
-                if (chan) {
-                    images = chan.sites.map((s, i) => ({
+                if (data.channels[canal]) {
+                    images = data.channels[canal].sites.map((s, i) => ({
                         parts: s.split || 1,
                         dur: (s.display_time || 30) * 1000,
                         id: i
                     }));
-                    document.getElementById('status').innerText = `FACTORYCAST : ${canal.toUpperCase()}`;
+                    document.getElementById('info').innerText = `LIVE: ${canal.toUpperCase()} | ${images.length} ÉCRANS`;
                     if (index === 0) rotate();
                 }
-            } catch (e) { setTimeout(update, 5000); }
+            } catch (e) { setTimeout(fetchConfig, 5000); }
         }
 
         function rotate() {
@@ -44,20 +42,16 @@
             const current = images[index];
 
             container.style.opacity = 0;
-            
             setTimeout(() => {
                 container.innerHTML = '';
-                // On crée autant de panneaux que de "Split"
                 for(let p=0; p < current.parts; p++) {
-                    const pane = document.createElement('div');
-                    pane.className = 'pane';
-                    pane.style.backgroundImage = `url('docs/screens/${canal}_${current.id}_p${p}.png?v=${Date.now()}')`;
-                    container.appendChild(pane);
+                    const div = document.createElement('div');
+                    div.className = 'pane';
+                    div.style.backgroundImage = `url('docs/screens/${canal}_${current.id}_p${p}.png?v=${Date.now()}')`;
+                    container.appendChild(div);
                 }
-                
                 container.style.opacity = 1;
 
-                // Barre de temps
                 pb.style.transition = 'none';
                 pb.style.width = '0%';
                 setTimeout(() => {
@@ -67,12 +61,12 @@
 
                 setTimeout(() => {
                     index = (index + 1) % images.length;
-                    if (index === 0) update();
+                    if (index === 0) fetchConfig();
                     rotate();
                 }, current.dur);
             }, 800);
         }
-        update();
+        fetchConfig();
     </script>
 </body>
 </html>
