@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Visual Management | Schneider</title>
+    <style>
+        body, html { margin: 0; background: #3e4042; height: 100%; overflow: hidden; font-family: Arial; }
+        .slide { width: 100vw; height: 100vh; object-fit: contain; display: none; }
+        .active { display: block; }
+        #loader { position: fixed; bottom: 0; left: 0; height: 8px; background: #3dcd58; width: 0%; transition: linear; }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="loader"></div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const canal = (params.get('canal') || 'usine').toLowerCase();
+        
+        async function run() {
+            // On tente de charger la config pour les temps d'affichage
+            let config = { sites: [] };
+            try {
+                const r = await fetch('config.json?t=' + Date.now());
+                const data = await r.json();
+                config = data.channels[Object.keys(data.channels).find(k => k.toLowerCase() === canal)];
+            } catch(e) { console.log("Config non dispo, mode auto"); }
+
+            const cont = document.getElementById('container');
+            const sites = config.sites.filter(s => s.active !== false);
+            
+            if(sites.length === 0) { 
+                cont.innerHTML = "<h1 style='color:white; text-align:center; margin-top:20%'>AUCUN SITE ACTIF</h1>";
+                return;
+            }
+
+            sites.forEach((s, i) => {
+                let img = document.createElement('img');
+                img.src = `docs/screens/${canal}_${i}.png?t=${Date.now()}`;
+                img.className = i === 0 ? 'slide active' : 'slide';
+                cont.appendChild(img);
+            });
+
+            let idx = 0;
+            const cycle = () => {
+                const slides = document.querySelectorAll('.slide');
+                const currentSite = sites[idx];
+                const time = (currentSite.display_time || 30) * 1000;
+
+                // Animation barre
+                const bar = document.getElementById('loader');
+                bar.style.transition = 'none'; bar.style.width = '0%';
+                setTimeout(() => {
+                    bar.style.transition = `width ${time}ms linear`;
+                    bar.style.width = '100%';
+                }, 50);
+
+                setTimeout(() => {
+                    slides[idx].classList.remove('active');
+                    idx = (idx + 1) % slides.length;
+                    slides[idx].classList.add('active');
+                    slides[idx].src = slides[idx].src.split('?')[0] + '?t=' + Date.now();
+                    cycle();
+                }, time);
+            };
+            cycle();
+        }
+        run();
+    </script>
+</body>
+</html>
