@@ -3,28 +3,21 @@ import json, time, os, sys, asyncio, subprocess
 from playwright.sync_api import sync_playwright
 from git import Repo
 from datetime import datetime
+from PIL import Image  # Pour le découpage des images
 
-# --- CONFIGURATION WINDOWS ---
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-st.set_page_config(page_title="FactoryCast Pro | Schneider Electric", layout="wide")
+st.set_page_config(page_title="FactoryCast Pro | Split Edition", layout="wide")
 
-# --- DESIGN SYSTEM ---
+# --- STYLE ---
 st.markdown("""
     <style>
-    :root { --se-green: #3dcd58; --se-dark: #3e4042; --se-light: #f4f4f4; }
+    :root { --se-green: #3dcd58; --se-dark: #3e4042; }
     .stApp { background-color: #ffffff; }
-    .main-header { color: var(--se-dark); border-left: 10px solid var(--se-green); padding-left: 20px; margin-bottom: 30px; }
-    .stButton>button { border-radius: 4px; font-weight: 600; }
-    .btn-save { background-color: var(--se-green) !important; color: white !important; width: 100%; border: none; padding: 10px; }
-    .channel-card { background: var(--se-light); padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; margin-bottom: 20px; }
-    .console-box { background: #1e1e1e; color: #d4d4d4; padding: 15px; height: 350px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 12px; border-radius: 4px; border-top: 5px solid #444; }
-    .log-time { color: #888; }
-    .log-git { color: #569cd6; }
-    .log-success { color: #4ec9b0; }
-    .log-error { color: #f44747; }
-    .link-box { background: #e8f5e9; padding: 10px; border-radius: 4px; border: 1px solid #c8e6c9; font-weight: bold; text-align: center; }
+    .channel-card { background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 10px solid var(--se-green); margin-bottom: 20px; border: 1px solid #ddd; }
+    .stButton>button { border-radius: 4px; font-weight: bold; }
+    .console-box { background: #1e1e1e; color: #d4d4d4; padding: 15px; height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; border-radius: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -35,149 +28,131 @@ if 'logs' not in st.session_state: st.session_state.logs = []
 
 def add_log(msg, level="INFO"):
     t = datetime.now().strftime("%H:%M:%S")
-    icons = {"INFO": "⚙️", "SUCCESS": "✅", "ERROR": "❌", "GIT": "☁️"}
-    color_class = {"INFO": "", "SUCCESS": "log-success", "ERROR": "log-error", "GIT": "log-git"}
-    log_html = f"<div class='{color_class[level]}'><span class='log-time'>[{t}]</span> {icons[level]} {msg}</div>"
-    st.session_state.logs.insert(0, log_html)
+    color = {"INFO": "#fff", "SUCCESS": "#3dcd58", "ERROR": "#f44747", "GIT": "#569cd6"}[level]
+    st.session_state.logs.insert(0, f"<div style='color:{color}'>[{t}] {msg}</div>")
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, "r") as f: return json.load(f)
-        except: pass
+        with open(CONFIG_FILE, "r") as f: return json.load(f)
     return {"channels": {}}
 
-def save_config(config, sync_git=False):
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f, indent=4)
-    if sync_git:
+def save_config(config, sync=False):
+    with open(CONFIG_FILE, "w") as f: json.dump(config, f, indent=4)
+    if sync:
         try:
             repo = Repo("./")
             repo.git.add(all=True)
             repo.git.add('config.json', force=True)
-            repo.index.commit(f"Update Config: {datetime.now().strftime('%H:%M')}")
+            repo.index.commit(f"Update FactoryCast: {datetime.now().strftime('%H:%M')}")
             repo.remote(name='origin').push()
-            add_log("Configuration synchronisée sur GitHub", "GIT")
-            return True
-        except Exception as e:
-            add_log(f"Erreur Sync Git : {str(e)}", "ERROR")
-    return False
+            add_log("Synchronisation GitHub réussie (SSH)", "GIT")
+        except Exception as e: add_log(f"Erreur Git: {str(e)}", "ERROR")
 
-# --- UI PRINCIPALE ---
-st.markdown("<h1 class='main-header'>FactoryCast Pro <small style='font-size:15px; color:#666;'>v2.1 - Dashboard Industriel</small></h1>", unsafe_allow_html=True)
+# --- MOTEUR DE CAPTURE AVEC SPLIT ---
+def run_capture_pro(selected_channels):
+    cfg = load_config()
+    if not os.path.exists(SCREENSHOT_DIR): os.makedirs(SCREENSHOT_DIR)
+    
+    with sync_playwright() as p:
+        add_log("Lancement du moteur Schneider...")
+        browser = p.chromium.launch_persistent_context(user_data_dir="./browser_session", headless=True)
+        page = browser.new_page()
+        
+        for ch in selected_channels:
+            for i, s in enumerate(cfg["channels"][ch]["sites"]):
+                try:
+                    add_log(f"Capture Full-Page : {s['url']}")
+                    page.goto(s['url'], timeout=60000, wait_until="networkidle")
+                    page.evaluate(f"document.body.style.zoom = '{s.get('zoom', 100)/100}'")
+                    time.sleep(s.get('wait_time', 5))
+                    
+                    # 1. Capture de la page COMPLETE
+                    temp_path = f"{SCREENSHOT_DIR}temp_{ch}_{i}.png"
+                    page.screenshot(path=temp_path, full_page=True)
+                    
+                    # 2. Gestion du SPLIT (Découpage)
+                    split_count = s.get('split', 1)
+                    img = Image.open(temp_path)
+                    width, height = img.size
+                    
+                    if split_count > 1:
+                        part_height = height // split_count
+                        for p_idx in range(split_count):
+                            top = p_idx * part_height
+                            bottom = (p_idx + 1) * part_height if p_idx < split_count - 1 else height
+                            part_img = img.crop((0, top, width, bottom))
+                            part_img.save(f"{SCREENSHOT_DIR}{ch}_{i}_p{p_idx}.png")
+                        add_log(f"Image découpée en {split_count} parties", "SUCCESS")
+                    else:
+                        img.save(f"{SCREENSHOT_DIR}{ch}_{i}_p0.png")
+                    
+                    os.remove(temp_path) # Nettoyage
+                    add_log(f"Site {i} mis à jour", "SUCCESS")
+                except Exception as e: add_log(f"Erreur site {i}: {str(e)}", "ERROR")
+        browser.close()
+    save_config(cfg, sync=True)
+
+# --- UI ---
+st.title("FactoryCast Pro | Schneider Electric")
 cfg = load_config()
 
-col_left, col_right = st.columns([2, 1])
+c1, c2 = st.columns([2, 1])
 
-with col_left:
-    st.subheader("📁 Gestion des Canaux d'Affichage")
-    
-    # Barre d'outils Canal
-    t1, t2 = st.columns([3, 1])
-    new_ch_name = t1.text_input("", placeholder="Nom du nouveau canal (ex: ATELIER_SUD)", label_visibility="collapsed")
-    if t2.button("➕ Créer Canal", use_container_width=True):
-        if new_ch_name:
-            cfg["channels"][new_ch_name.lower()] = {"sites": []}
-            save_config(cfg)
-            add_log(f"Canal '{new_ch_name}' créé localement")
-            st.rerun()
+with c1:
+    st.header("⚙️ Configuration")
+    # Création Canal
+    t1, t2 = st.columns([3,1])
+    n_ch = t1.text_input("Nom du nouveau canal", label_visibility="collapsed", placeholder="Nom du canal...")
+    if t2.button("➕ Créer"):
+        if n_ch: cfg["channels"][n_ch.lower()] = {"sites": []}; save_config(cfg); st.rerun()
 
-    st.divider()
-
-    # Liste des canaux
-    for ch_name, data in list(cfg["channels"].items()):
+    for ch_name, data in cfg["channels"].items():
         with st.container():
             st.markdown(f"<div class='channel-card'>", unsafe_allow_html=True)
+            h1, h2 = st.columns([4,1])
+            h1.subheader(f"📍 Canal : {ch_name.upper()}")
+            if h2.button("🗑️ Supprimer", key=f"d_ch_{ch_name}"):
+                del cfg["channels"][ch_name]; save_config(cfg); st.rerun()
             
-            # Header du canal
-            h1, h2, h3 = st.columns([3, 1, 1])
-            h1.markdown(f"### 📍 Point : {ch_name.upper()}")
-            
-            # Lien de diffusion rapide
-            public_url = f"https://nicolasvoiron.github.io/root/index.html?canal={ch_name}"
-            h1.markdown(f"<div class='link-box'>🔗 <a href='{public_url}' target='_blank'>Accéder au lien de diffusion</a></div>", unsafe_allow_html=True)
+            # Lien rapide
+            url_pub = f"https://nicolasvoiron.github.io/root/index.html?canal={ch_name}"
+            st.info(f"🔗 Lien de diffusion : {url_pub}")
 
-            if h3.button("🗑️ Supprimer Canal", key=f"del_ch_{ch_name}"):
-                del cfg["channels"][ch_name]
-                save_config(cfg)
-                st.rerun()
-
-            # Liste des sites dans le canal
             for idx, site in enumerate(data["sites"]):
-                st.markdown("---")
-                s1, s2 = st.columns([1, 4])
+                st.divider()
+                col_m, col_f = st.columns([1, 4])
                 
                 # Miniature
-                img_path = f"{SCREENSHOT_DIR}{ch_name.lower()}_{idx}.png"
-                if os.path.exists(img_path):
-                    s1.image(img_path, use_container_width=True)
-                else:
-                    s1.warning("Pas d'image")
+                m_p = f"{SCREENSHOT_DIR}{ch_name}_{idx}_p0.png"
+                if os.path.exists(m_p): col_m.image(m_p)
                 
-                # Paramètres
-                site['url'] = s2.text_input("URL du site", site['url'], key=f"url_{ch_name}_{idx}")
-                c1, c2, c3, c4 = s2.columns(4)
-                site['zoom'] = c1.number_input("Zoom %", 10, 200, site.get('zoom', 100), key=f"z_{ch_name}_{idx}")
-                site['wait_time'] = c2.number_input("Attente (s)", 1, 60, site.get('wait_time', 10), key=f"w_{ch_name}_{idx}")
-                site['display_time'] = c3.number_input("Durée (s)", 5, 600, site.get('display_time', 30), key=f"d_{ch_name}_{idx}")
+                site['url'] = col_f.text_input("URL", site['url'], key=f"u{ch_name}{idx}")
+                r1, r2, r3, r4 = col_f.columns(4)
+                site['zoom'] = r1.number_input("Zoom %", 10, 200, site['zoom'], key=f"z{ch_name}{idx}")
+                site['display_time'] = r2.number_input("Affichage (s)", 5, 600, site['display_time'], key=f"d{ch_name}{idx}")
                 
-                if c4.button("🔑 Login", key=f"log_{ch_name}_{idx}", use_container_width=True):
-                    add_log(f"Ouverture session manuelle pour {ch_name}_{idx}")
+                # --- NOUVELLE OPTION SPLIT ---
+                site['split'] = r3.selectbox("Découpage (Split)", [1, 2, 3], index=site.get('split', 1)-1, key=f"s{ch_name}{idx}")
+                
+                if r4.button("🔑 Login", key=f"l{ch_name}{idx}"):
                     cmd = f"from playwright.sync_api import sync_playwright; p=sync_playwright().start(); b=p.chromium.launch_persistent_context(user_data_dir='./browser_session', headless=False); pg=b.new_page(); pg.goto('{site['url']}'); pg.wait_for_event('close', timeout=0)"
                     subprocess.Popen(["python", "-c", cmd])
-                
-                if s2.button("🗑️ Retirer ce site", key=f"rm_{ch_name}_{idx}"):
-                    data["sites"].pop(idx)
-                    save_config(cfg)
-                    st.rerun()
 
-            if st.button(f"➕ Ajouter un site à {ch_name.upper()}", key=f"add_s_{ch_name}"):
-                data["sites"].append({"url": "", "zoom": 100, "wait_time": 10, "display_time": 30, "active": True})
-                save_config(cfg)
-                st.rerun()
-            
+            if st.button(f"➕ Ajouter site à {ch_name}", key=f"add_{ch_name}"):
+                data["sites"].append({"url": "", "zoom": 100, "wait_time": 5, "display_time": 30, "split": 1})
+                save_config(cfg); st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
-with col_right:
-    st.subheader("🚀 Pilotage")
-    
-    # BOUTON SAUVEGARDER
+with c2:
+    st.header("🚀 Pilotage")
     if st.button("💾 ENREGISTRER & SYNCHRONISER", type="primary", use_container_width=True):
-        with st.spinner("Mise à jour Cloud..."):
-            if save_config(cfg, sync_git=True):
-                st.success("Configuration sauvegardée et envoyée !")
-                time.sleep(1)
-                st.rerun()
-
+        save_config(cfg, sync=True)
+        st.success("Config synchronisée !")
+    
     st.divider()
-    
-    # BOUTON CAPTURE
-    sel_channels = st.multiselect("Canaux à capturer", list(cfg["channels"].keys()))
+    sel = st.multiselect("Canaux à capturer", list(cfg["channels"].keys()))
     if st.button("📸 LANCER LA CAPTURE", use_container_width=True):
-        if sel_channels:
-            add_log(f"Démarrage cycle de capture pour : {', '.join(sel_channels)}")
-            # Logique de capture simplifiée ici
-            with sync_playwright() as p:
-                browser = p.chromium.launch_persistent_context(user_data_dir="./browser_session", headless=True)
-                page = browser.new_page()
-                for ch in sel_channels:
-                    for i, s in enumerate(cfg["channels"][ch]["sites"]):
-                        try:
-                            page.goto(s['url'], timeout=60000)
-                            page.evaluate(f"document.body.style.zoom = '{s['zoom']/100}'")
-                            time.sleep(s['wait_time'])
-                            page.screenshot(path=f"{SCREENSHOT_DIR}{ch}_{i}.png")
-                            add_log(f"Image {ch}_{i} mise à jour", "SUCCESS")
-                        except Exception as e:
-                            add_log(f"Erreur {ch}_{i}: {str(e)}", "ERROR")
-                browser.close()
-            save_config(cfg, sync_git=True)
-            st.rerun()
-
-    st.subheader("📟 Console Système")
-    log_content = "".join(st.session_state.logs)
-    st.markdown(f"<div class='console-box'>{log_content}</div>", unsafe_allow_html=True)
+        run_capture_pro(sel); st.rerun()
     
-    if st.button("🧹 Effacer la console"):
-        st.session_state.logs = []
-        st.rerun()
+    st.subheader("📟 Console")
+    st.markdown(f"<div class='console-box'>{''.join(st.session_state.logs)}</div>", unsafe_allow_html=True)
