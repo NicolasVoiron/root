@@ -12,7 +12,7 @@
                 },
                 {
                     "url": "http://10.192.43.139:1880/ui/",
-                    "zoom": 100,
+                    "zoom": 15,
                     "wait_time": 10,
                     "display_time": 20,
                     "split": 1,
