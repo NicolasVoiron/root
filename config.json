@@ -4,7 +4,7 @@
             "sites": [
                 {
                     "url": "http://10.192.43.139:1880/ui",
-                    "zoom": 50,
+                    "zoom": 30,
                     "wait_time": 15,
                     "display_time": 15,
                     "split": 1,
