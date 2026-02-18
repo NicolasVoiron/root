@@ -9,8 +9,8 @@
                     "display_time": 30,
                     "split": 2,
                     "refresh_freq": 1,
-                    "last_update_time": 1771450610.8292618,
-                    "last_update_str": "22:36:50"
+                    "last_update_time": 1771450821.7925353,
+                    "last_update_str": "22:40:21"
                 },
                 {
                     "url": "http://10.192.43.139:1880/ui/",
@@ -19,8 +19,8 @@
                     "display_time": 30,
                     "split": 1,
                     "refresh_freq": 1,
-                    "last_update_time": 1771450630.055428,
-                    "last_update_str": "22:37:10"
+                    "last_update_time": 1771450841.3684497,
+                    "last_update_str": "22:40:41"
                 }
             ]
         }
