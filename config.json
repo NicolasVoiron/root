@@ -3,7 +3,7 @@
         "point_1": {
             "sites": [
                 {
-                    "url": "https://se.aubenas.kamishibaii.prod-eo.com/",
+                    "url": "https://se.aubenas.kamishibaii.prod-eo.com/taskManager?taskmanagerid=685bb5cf068e9b000c53565a",
                     "zoom": 100,
                     "wait_time": 60,
                     "display_time": 30,
