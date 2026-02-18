@@ -1,6 +1,6 @@
 {
     "channels": {
-        "bureau": {
+        "support": {
             "sites": [
                 {
                     "url": "https://se.aubenas.kamishibaii.prod-eo.com/taskManager?taskmanagerid=685bb5cf068e9b000c53565a",
@@ -11,7 +11,7 @@
                 },
                 {
                     "url": "http://10.192.43.139:1880/ui",
-                    "zoom": 50,
+                    "zoom": 100,
                     "wait_time": 10,
                     "display_time": 30,
                     "split": 1
