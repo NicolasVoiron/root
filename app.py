@@ -5,21 +5,18 @@ from git import Repo
 from datetime import datetime
 from PIL import Image
 
-# --- CONFIGURATION INITIALE ---
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-st.set_page_config(page_title="FactoryCast Pro V3", layout="wide")
+st.set_page_config(page_title="Schneider | FactoryCast Pro v4", layout="wide")
 
-# --- STYLE SCHNEIDER & UI ---
+# --- STYLE SCHNEIDER ---
 st.markdown("""
     <style>
-    :root { --se-green: #3dcd58; --se-dark: #3e4042; }
-    .stApp { background-color: #f4f4f4; }
-    .channel-container { background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; }
-    .console-box { background: #1e1e1e; color: #00ff41; padding: 12px; height: 380px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 11px; border-radius: 4px; border-left: 5px solid #555; }
-    .log-git { color: #ce9178; } .log-success { color: #3dcd58; font-weight: bold; }
-    .stExpander { border: 1px solid #ddd !important; background: white !important; }
+    .stApp { background-color: #f8f9fa; }
+    .console-box { background: #121212; color: #00ff41; padding: 15px; height: 450px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 12px; border-radius: 4px; border: 1px solid #333; }
+    .log-time { color: #888; } .log-step { color: #569cd6; } .log-wait { color: #ce9178; } .log-success { color: #3dcd58; font-weight: bold; }
+    .stExpander { background: white !important; border-radius: 8px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -29,10 +26,11 @@ SCREENSHOT_DIR = "docs/screens/"
 if 'logs' not in st.session_state: st.session_state.logs = []
 if 'is_running' not in st.session_state: st.session_state.is_running = False
 
-def add_log(msg, level="INFO"):
+def add_log(msg, type="INFO"):
     t = datetime.now().strftime("%H:%M:%S")
-    style = {"INFO": "", "SUCCESS": "log-success", "ERROR": "color:#f44747", "GIT": "log-git"}.get(level, "")
-    st.session_state.logs.insert(0, f"<div><span style='color:#777'>[{t}]</span> <span class='{style}'>{msg}</span></div>")
+    styles = {"STEP": "log-step", "WAIT": "log-wait", "SUCCESS": "log-success", "ERROR": "color:#f44747"}
+    cls = styles.get(type, "")
+    st.session_state.logs.insert(0, f"<div><span class='log-time'>[{t}]</span> <span class='{cls}'>{msg}</span></div>")
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
@@ -45,131 +43,134 @@ def save_config(config, sync_git=False):
         try:
             repo = Repo("./")
             repo.git.add(all=True)
-            repo.git.add(CONFIG_FILE, force=True)
-            repo.index.commit(f"Sync FactoryCast: {datetime.now().strftime('%H:%M')}")
+            repo.index.commit(f"Auto-update {datetime.now().strftime('%H:%M:%S')}")
             repo.remote(name='origin').push()
-            add_log("Synchronisation SSH réussie !", "GIT")
-        except Exception as e: add_log(f"Erreur Git: {str(e)}", "ERROR")
+            add_log("Push GitHub terminé avec succès (SSH)", "SUCCESS")
+        except Exception as e: add_log(f"Erreur Git : {str(e)}", "ERROR")
 
-# --- MOTEUR DE CAPTURE AMÉLIORÉ ---
+# --- MOTEUR DE CAPTURE ROBUSTE ---
 def run_capture_sequence(selected_channels):
     cfg = load_config()
     if not os.path.exists(SCREENSHOT_DIR): os.makedirs(SCREENSHOT_DIR)
     
     with sync_playwright() as p:
-        # Utilisation d'un contexte persistant pour garder les sessions login
-        browser = p.chromium.launch_persistent_context(user_data_dir="./browser_session", headless=True)
+        add_log("Démarrage du navigateur Schneider...", "STEP")
+        # Fix Zoom : On définit une fenêtre immense pour le zoom
+        browser = p.chromium.launch_persistent_context(
+            user_data_dir="./browser_session", 
+            headless=True,
+            viewport={'width': 1920, 'height': 1080},
+            device_scale_factor=1 # Base 1 pour éviter les flous
+        )
         page = browser.new_page()
         
         for ch in selected_channels:
-            add_log(f"Traitement Canal : {ch.upper()}")
+            add_log(f"--- CANAL : {ch.upper()} ---", "STEP")
             for i, s in enumerate(cfg["channels"][ch]["sites"]):
                 try:
-                    # 1. Navigation avec attente de réseau calme
-                    page.goto(s['url'], timeout=90000, wait_until="networkidle")
-                    page.evaluate(f"document.body.style.zoom = '{s['zoom']/100}'")
+                    add_log(f"Navigation : {s['url']}", "STEP")
+                    page.goto(s['url'], timeout=90000, wait_until="load")
                     
-                    # 2. WAIT TIME RÉEL (Playwright Native Wait)
-                    add_log(f"Attente forcée pour {ch}_{i} : {s['wait_time']}s")
-                    page.wait_for_timeout(s['wait_time'] * 1000)
+                    # Application du Zoom via CSS Transform (plus fiable pour le rendu)
+                    z_factor = s['zoom'] / 100
+                    page.evaluate(f"document.body.style.zoom = '{z_factor}'")
                     
-                    # 3. Capture & Split
-                    temp_p = f"{SCREENSHOT_DIR}temp.png"
+                    # COMPTE À REBOURS DANS LA CONSOLE
+                    total_w = s['wait_time']
+                    add_log(f"Attente de stabilisation ({total_w}s)...", "WAIT")
+                    # On simule l'attente avec logs toutes les 5s
+                    for remaining in range(total_w, 0, -5):
+                        time.sleep(min(5, remaining))
+                        add_log(f"  > Reste {max(0, remaining-5)}s...", "WAIT")
+
+                    # CAPTURE
+                    add_log(f"Prise de vue pour {ch}_{i}...", "STEP")
+                    temp_p = f"{SCREENSHOT_DIR}raw.png"
                     page.screenshot(path=temp_p, full_page=True)
                     
-                    split_n = s.get('split', 1)
+                    # SPLIT LOGIC
                     img = Image.open(temp_p)
                     w, h = img.size
+                    split_n = s.get('split', 1)
                     segment_h = h // split_n
                     for p_idx in range(split_n):
-                        img.crop((0, p_idx*segment_h, w, (p_idx+1)*segment_h)).save(f"{SCREENSHOT_DIR}{ch}_{i}_p{p_idx}.png")
+                        top = p_idx * segment_h
+                        bottom = h if p_idx == split_n-1 else (p_idx+1) * segment_h
+                        img.crop((0, top, w, bottom)).save(f"{SCREENSHOT_DIR}{ch}_{i}_p{p_idx}.png")
                     
                     s['last_update'] = datetime.now().strftime("%H:%M:%S")
-                    add_log(f"Mise à jour réussie : {ch}_{i}", "SUCCESS")
-                except Exception as e: add_log(f"Erreur {ch}_{i}: {str(e)}", "ERROR")
+                    add_log(f"Site {i} traité avec succès", "SUCCESS")
+                except Exception as e: add_log(f"Erreur site {i}: {str(e)}", "ERROR")
         browser.close()
     save_config(cfg, sync_git=True)
 
-# --- INTERFACE ---
-st.title(" Schneider Electric | FactoryCast Pro")
+# --- UI STREAMLIT ---
+st.title("Schneider Electric | FactoryCast Pro")
 cfg = load_config()
 
 col_main, col_side = st.columns([2, 1])
 
 with col_main:
-    st.subheader("🛠️ Configuration des Écrans")
+    st.subheader("⚙️ Configuration")
     
-    # Création de canal
+    # Création point
     with st.expander("➕ Créer un nouveau point d'affichage"):
         t1, t2 = st.columns([3,1])
-        n_ch = t1.text_input("Nom de l'écran (ex: Ateliers)", key="new_ch_name")
-        if t2.button("Confirmer la création"):
+        n_ch = t1.text_input("Nom de l'écran", key="new_ch")
+        if t2.button("Créer"):
             if n_ch: cfg["channels"][n_ch.lower()] = {"sites": []}; save_config(cfg); st.rerun()
 
-    # Liste des canaux (Points)
     for name, data in cfg["channels"].items():
-        # UTILISATION DE EXPANDER POUR MASQUER / GAINER DE LA PLACE
         with st.expander(f"📍 Point : {name.upper()}", expanded=True):
-            st.info(f"🔗 [Lien Public](https://nicolasvoiron.github.io/root/index.html?canal={name})")
+            st.write(f"🔗 [Lien Public](https://nicolasvoiron.github.io/root/index.html?canal={name})")
             
             for idx, s in enumerate(data["sites"]):
-                st.markdown(f"**Site #{idx+1}**")
+                st.markdown(f"**Écran #{idx}**")
                 s1, s2 = st.columns([1, 4])
                 img_p = f"{SCREENSHOT_DIR}{name}_{idx}_p0.png"
                 if os.path.exists(img_p): s1.image(img_p)
                 
-                s['url'] = s2.text_input("Lien cible", s['url'], key=f"u{name}{idx}")
+                s['url'] = s2.text_input("URL", s['url'], key=f"u{name}{idx}")
                 r1, r2, r3, r4 = s2.columns(4)
                 s['zoom'] = r1.number_input("Zoom %", 10, 200, s['zoom'], key=f"z{name}{idx}")
-                s['wait_time'] = r2.number_input("Attente chargement (s)", 1, 120, s['wait_time'], key=f"w{name}{idx}")
-                s['display_time'] = r3.number_input("Temps affichage (s)", 5, 600, s['display_time'], key=f"d{name}{idx}")
+                s['wait_time'] = r2.number_input("Wait (s)", 1, 180, s['wait_time'], key=f"w{name}{idx}")
+                s['display_time'] = r3.number_input("Show (s)", 5, 600, s['display_time'], key=f"d{name}{idx}")
                 s['split'] = r4.selectbox("Split", [1, 2, 3], index=s['split']-1, key=f"s{name}{idx}")
                 
-                b1, b2, b3 = s2.columns(3)
-                if b1.button(f"🔑 Login Manuel", key=f"log{name}{idx}"):
-                    cmd = f"from playwright.sync_api import sync_playwright; p=sync_playwright().start(); b=p.chromium.launch_persistent_context(user_data_dir='./browser_session', headless=False); pg=b.new_page(); pg.goto('{s['url']}'); pg.wait_for_event('close', timeout=0)"
-                    subprocess.Popen(["python", "-c", cmd])
-                if b2.button(f"🗑️ Retirer", key=f"rm{name}{idx}"):
+                if s2.button(f"🔑 Login Manuel {name}_{idx}"):
+                    subprocess.Popen(["python", "-c", f"from playwright.sync_api import sync_playwright; p=sync_playwright().start(); b=p.chromium.launch_persistent_context(user_data_dir='./browser_session', headless=False); pg=b.new_page(); pg.goto('{s['url']}'); pg.wait_for_event('close', timeout=0)"])
+                if s2.button(f"🗑️ Retirer", key=f"rm{name}{idx}"):
                     data["sites"].pop(idx); save_config(cfg); st.rerun()
 
-            if st.button(f"➕ Ajouter un site à {name}", key=f"add{name}"):
+            if st.button(f"➕ Ajouter site à {name}", key=f"add{name}"):
                 data["sites"].append({"url": "", "zoom": 100, "wait_time": 10, "display_time": 30, "split": 1})
                 save_config(cfg); st.rerun()
-            
-            if st.button(f"❌ Supprimer le point {name.upper()}", key=f"del{name}"):
+            if st.button(f"❌ Supprimer {name}", key=f"del{name}"):
                 del cfg["channels"][name]; save_config(cfg); st.rerun()
 
-    # BOUTON ENREGISTRER GLOBAL
     st.divider()
-    if st.button("💾 SAUVEGARDER LA CONFIGURATION", type="primary", use_container_width=True):
+    if st.button("💾 SAUVEGARDER & SYNCHRONISER", type="primary", use_container_width=True):
         save_config(cfg, sync_git=True)
-        st.success("Configuration enregistrée et synchronisée.")
+        st.success("Config synchronisée !")
 
 with col_side:
-    st.subheader("🚀 Pilotage Direct")
-    freq = st.slider("Fréquence de mise à jour (minutes)", 1, 60, 5)
-    sel = st.multiselect("Sélectionner les écrans à mettre à jour", list(cfg["channels"].keys()))
+    st.subheader("🚀 Auto-Pilot")
+    freq = st.slider("Fréquence capture (min)", 1, 60, 5)
+    sel = st.multiselect("Ecrans à capturer", list(cfg["channels"].keys()))
     
     if not st.session_state.is_running:
-        if st.button("▶️ DÉMARRER LA CAPTURE GÉNÉRALE", type="primary", use_container_width=True):
-            if sel:
-                st.session_state.is_running = True
-                st.rerun()
-            else: st.error("Sélectionnez au moins un canal.")
+        if st.button("▶️ DÉMARRER", type="primary", use_container_width=True):
+            st.session_state.is_running = True; st.rerun()
     else:
-        if st.button("🛑 ARRÊTER L'AUTO-PILOT", use_container_width=True):
-            st.session_state.is_running = False
-            st.rerun()
-        st.info("🔄 Auto-Pilot Actif. Ne fermez pas cette page.")
+        if st.button("🛑 ARRÊTER", type="primary", use_container_width=True):
+            st.session_state.is_running = False; st.rerun()
+        st.warning("🔄 Automate en cours...")
 
-    # LA CONSOLE EST PLACÉE ICI POUR RESTER VISIBLE
-    st.markdown("### 📟 Console Monitoring")
+    st.markdown("### 📋 Console Détaillée")
     st.markdown(f"<div class='console-box'>{''.join(st.session_state.logs)}</div>", unsafe_allow_html=True)
-    if st.button("🧹 Effacer la console"): st.session_state.logs = []; st.rerun()
 
-# --- LOGIQUE DE BOUCLE AUTO-PILOT ---
 if st.session_state.is_running:
     run_capture_sequence(sel)
-    add_log(f"Cycle terminé. Attente de {freq} minute(s)...")
+    add_log(f"Repos {freq} min avant prochain cycle.", "WAIT")
     time.sleep(freq * 60)
     st.rerun()
