@@ -7,14 +7,16 @@
                     "zoom": 100,
                     "wait_time": 30,
                     "display_time": 30,
-                    "split": 1
+                    "split": 1,
+                    "last_update": "20:04:53"
                 },
                 {
                     "url": "http://10.192.43.139:1880/ui/",
                     "zoom": 65,
                     "wait_time": 10,
                     "display_time": 30,
-                    "split": 1
+                    "split": 1,
+                    "last_update": "20:05:04"
                 }
             ]
         }
