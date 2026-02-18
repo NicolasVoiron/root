@@ -2,60 +2,57 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Display Schneider</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #3e4042; }
         #viewer { width: 100%; height: 100%; background-size: contain; background-repeat: no-repeat; background-position: center; transition: opacity 1s; }
-        #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #3dcd58; font-family: sans-serif; font-weight: bold; }
+        #progress-container { position: fixed; bottom: 0; left: 0; width: 100%; height: 8px; background: rgba(0,0,0,0.3); }
+        #progress-bar { width: 0%; height: 100%; background: #3dcd58; transition: width linear; }
     </style>
 </head>
 <body>
-    <div id="msg">Connexion à GitHub en cours...</div>
     <div id="viewer"></div>
+    <div id="progress-container"><div id="progress-bar"></div></div>
     <script>
         const params = new URLSearchParams(window.location.search);
         const canal = params.get('canal') || 'bureau';
-        let images = [];
-        let index = 0;
+        let images = [], index = 0;
 
-        async function start() {
+        async function init() {
             try {
                 const res = await fetch('config.json?t=' + Date.now());
-                if (!res.ok) throw new Error();
                 const data = await res.json();
-                if (data.channels[canal]) {
-                    images = data.channels[canal].sites
-                        .filter(s => s.active !== false && s.url !== "")
-                        .map((s, i) => ({
-                            url: `docs/screens/${canal}_${i}.png?v=` + Date.now(),
-                            dur: (s.display_time || 30) * 1000
-                        }));
-                    if (images.length > 0) {
-                        document.getElementById('msg').style.display = 'none';
-                        rotate();
-                        return;
-                    }
-                }
-                document.getElementById('msg').innerText = "Canal vide ou inexistant.";
-            } catch (e) {
-                document.getElementById('msg').innerText = "Attente du fichier config.json sur GitHub...";
-                setTimeout(start, 5000);
-            }
+                images = data.channels[canal].sites.map((s, i) => ({
+                    url: `docs/screens/${canal}_${i}.png?v=` + Date.now(),
+                    dur: (s.display_time || 30) * 1000
+                }));
+                show();
+            } catch (e) { setTimeout(init, 5000); }
         }
 
-        function rotate() {
+        function show() {
             const v = document.getElementById('viewer');
+            const pb = document.getElementById('progress-bar');
             v.style.opacity = 0;
+            
             setTimeout(() => {
                 v.style.backgroundImage = `url('${images[index].url}')`;
                 v.style.opacity = 1;
+                
+                // Animation de la barre
+                pb.style.transition = 'none';
+                pb.style.width = '0%';
+                setTimeout(() => {
+                    pb.style.transition = `width ${images[index].dur}ms linear`;
+                    pb.style.width = '100%';
+                }, 50);
+
                 setTimeout(() => {
                     index = (index + 1) % images.length;
-                    rotate();
+                    show();
                 }, images[index].dur);
             }, 1000);
         }
-        start();
+        init();
     </script>
 </body>
 </html>
