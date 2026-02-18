@@ -8,7 +8,9 @@
                     "wait_time": 60,
                     "display_time": 30,
                     "split": 2,
-                    "refresh_freq": 1
+                    "refresh_freq": 1,
+                    "last_update_time": 1771450032.0272558,
+                    "last_update_str": "22:27:12"
                 },
                 {
                     "url": "http://10.192.43.139:1880/ui/",
@@ -16,7 +18,9 @@
                     "wait_time": 15,
                     "display_time": 30,
                     "split": 1,
-                    "refresh_freq": 1
+                    "refresh_freq": 1,
+                    "last_update_time": 1771450051.943219,
+                    "last_update_str": "22:27:31"
                 }
             ]
         }
