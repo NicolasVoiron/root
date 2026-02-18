@@ -1,97 +1,59 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FactoryCast Display - Schneider Electric</title>
+    <title>Display Schneider</title>
     <style>
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            overflow: hidden; background-color: #3e4042; 
-            font-family: Arial, sans-serif;
-        }
-        #viewer { 
-            width: 100%; height: 100%; 
-            background-size: contain; 
-            background-repeat: no-repeat; 
-            background-position: center;
-            transition: opacity 0.8s ease-in-out;
-        }
-        .loading {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #3dcd58; font-size: 20px; font-weight: bold;
-        }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #3e4042; }
+        #viewer { width: 100%; height: 100%; background-size: contain; background-repeat: no-repeat; background-position: center; transition: opacity 1s; }
+        #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #3dcd58; font-family: sans-serif; text-align: center; }
     </style>
 </head>
 <body>
-    <div id="loading" class="loading">Initialisation Schneider Electric...</div>
+    <div id="msg">Chargement des données GitHub...</div>
     <div id="viewer"></div>
 
     <script>
-        // 1. On récupère le nom du canal dans l'URL (ex: ?canal=bureau)
-        const urlParams = new URLSearchParams(window.location.search);
-        const canal = urlParams.get('canal') || 'default';
-        
-        let currentIndex = 0;
+        const params = new URLSearchParams(window.location.search);
+        const canal = params.get('canal') || 'bureau';
         let images = [];
+        let index = 0;
 
-        // 2. Fonction pour charger la liste des images (config.json)
-        async function loadConfig() {
+        async function init() {
             try {
-                // On ajoute un timestamp pour éviter que le navigateur ne garde une vieille version en cache
-                const response = await fetch('config.json?t=' + Date.now());
-                const config = await response.json();
+                // On force la lecture du fichier local sur le serveur GitHub
+                const res = await fetch('config.json?nocache=' + Math.random());
+                const config = await res.json();
                 
                 if (config.channels[canal]) {
-                    // On filtre uniquement les sites actifs
-                    images = config.channels[canal].sites
-                        .map((site, index) => ({
-                            url: `docs/screens/${canal}_${index}.png`,
-                            duration: (site.display_time || 30) * 1000,
-                            active: site.active !== false
-                        }))
-                        .filter(img => img.active);
-                    
-                    document.getElementById('loading').style.display = 'none';
-                    if (images.length > 0) {
-                        displayNextImage();
-                    } else {
-                        document.getElementById('loading').innerText = "Aucun site actif pour ce canal.";
-                    }
+                    images = config.channels[canal].sites.map((s, i) => ({
+                        url: `docs/screens/${canal}_${i}.png?t=` + Math.random(),
+                        dur: (s.display_time || 30) * 1000
+                    }));
+                    document.getElementById('msg').style.display = 'none';
+                    rotate();
                 } else {
-                    document.getElementById('loading').innerText = `Canal "${canal}" introuvable.`;
+                    document.getElementById('msg').innerText = "Canal non trouvé : " + canal;
                 }
             } catch (e) {
-                document.getElementById('loading').innerText = "Erreur de connexion au serveur GitHub.";
+                document.getElementById('msg').innerText = "Erreur de connexion au serveur GitHub. Réessai dans 5s...";
+                setTimeout(init, 5000);
             }
         }
 
-        // 3. Fonction d'affichage cyclique
-        function displayNextImage() {
-            const viewer = document.getElementById('viewer');
-            const currentImg = images[currentIndex];
-
-            // On précharge l'image avec un paramètre anti-cache
-            const imgUrlWithCacheBuster = currentImg.url + '?t=' + Date.now();
-            
-            viewer.style.opacity = 0; // Transition fluide
-            
+        function rotate() {
+            const v = document.getElementById('viewer');
+            v.style.opacity = 0;
             setTimeout(() => {
-                viewer.style.backgroundImage = `url('${imgUrlWithCacheBuster}')`;
-                viewer.style.opacity = 1;
-                
-                currentIndex = (currentIndex + 1) % images.length;
-                
-                // On programme la prochaine image selon la durée définie dans Streamlit
-                setTimeout(displayNextImage, currentImg.duration);
-            }, 800);
+                v.style.backgroundImage = `url('${images[index].url}')`;
+                v.style.opacity = 1;
+                let wait = images[index].dur;
+                index = (index + 1) % images.length;
+                setTimeout(rotate, wait);
+            }, 1000);
         }
 
-        // Démarrage
-        loadConfig();
-
-        // Optionnel : Recharger la config toutes les 10 minutes pour voir les nouveaux sites ajoutés
-        setInterval(loadConfig, 600000);
+        init();
     </script>
 </body>
 </html>
