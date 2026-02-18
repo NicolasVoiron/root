@@ -1,28 +1,27 @@
-
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>FactoryCast Display</title>
+    <title>Display Schneider</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #3e4042; }
-        #viewer { width: 100%; height: 100%; background-size: contain; background-repeat: no-repeat; background-position: center; transition: opacity 1s; opacity: 0; }
-        #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #3dcd58; font-family: sans-serif; }
+        #viewer { width: 100%; height: 100%; background-size: contain; background-repeat: no-repeat; background-position: center; transition: opacity 1s; }
+        #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #3dcd58; font-family: sans-serif; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="msg">Initialisation Schneider Electric...</div>
+    <div id="msg">Connexion à GitHub en cours...</div>
     <div id="viewer"></div>
-
     <script>
         const params = new URLSearchParams(window.location.search);
         const canal = params.get('canal') || 'bureau';
         let images = [];
         let index = 0;
 
-        async function load() {
+        async function start() {
             try {
-                const res = await fetch('config.json?v=' + Date.now());
+                const res = await fetch('config.json?t=' + Date.now());
+                if (!res.ok) throw new Error();
                 const data = await res.json();
                 if (data.channels[canal]) {
                     images = data.channels[canal].sites
@@ -33,16 +32,18 @@
                         }));
                     if (images.length > 0) {
                         document.getElementById('msg').style.display = 'none';
-                        show();
-                    } else { document.getElementById('msg').innerText = "Aucun site actif."; }
+                        rotate();
+                        return;
+                    }
                 }
-            } catch (e) { 
-                document.getElementById('msg').innerText = "Erreur de connexion GitHub. Réessai..."; 
-                setTimeout(load, 5000);
+                document.getElementById('msg').innerText = "Canal vide ou inexistant.";
+            } catch (e) {
+                document.getElementById('msg').innerText = "Attente du fichier config.json sur GitHub...";
+                setTimeout(start, 5000);
             }
         }
 
-        function show() {
+        function rotate() {
             const v = document.getElementById('viewer');
             v.style.opacity = 0;
             setTimeout(() => {
@@ -50,11 +51,11 @@
                 v.style.opacity = 1;
                 setTimeout(() => {
                     index = (index + 1) % images.length;
-                    show();
+                    rotate();
                 }, images[index].dur);
             }, 1000);
         }
-        load();
+        start();
     </script>
 </body>
 </html>
