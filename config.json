@@ -8,18 +8,18 @@
                 "freq": 60,
                 "duration": 15,
                 "split": 2,
-                "last_ts": 1771495382.3823707,
-                "last_update_str": "11:03"
+                "last_ts": 1771495734.528697,
+                "last_update_str": "11:09"
             },
             {
                 "url": "http://10.192.43.139:1880/ui/",
-                "zoom": 100,
+                "zoom": 45,
                 "wait_time": 5,
                 "freq": 30,
                 "duration": 20,
                 "split": 1,
-                "last_ts": 1771495429.750894,
-                "last_update_str": "11:03"
+                "last_ts": 1771495780.6510909,
+                "last_update_str": "11:09"
             }
         ]
     }
