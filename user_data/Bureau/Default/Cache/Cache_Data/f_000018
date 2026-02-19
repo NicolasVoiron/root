@@ -1,0 +1,936 @@
+/* Traductions */
+var DELETE_SECTOR_SERVICE = DELETE_SECTOR_SERVICE ?? '';
+var NAME = NAME ?? '';
+var NAME_ALREAY_EXISTS = NAME_ALREAY_EXISTS ?? '';
+var NEW_SECTOR_SERVICE = NEW_SECTOR_SERVICE ?? '';
+var OK = OK ?? '';
+var PLEASE_WRITE_NAME = PLEASE_WRITE_NAME ?? '';
+var UPDATE_SECTOR_SERVICE = UPDATE_SECTOR_SERVICE ?? '';
+
+// ========================================================
+/**
+ * Fonction pour ouvrir modal
+ * @param {*} top
+ * @param {*} id id du popup à afficher
+ * @param {*} blank
+ */
+function openPopUp( top, id, blank ) {
+  $( 'html' ).css( 'overflow', 'hidden' );
+  $( 'html, body' ).bind( 'touchmove', function( e ) {
+    var id = e.target.id;
+    if ( id == 'blank' || id == 'buttonContainer' || id == 'userTitle' )
+      e.preventDefault();
+  } );
+
+  if ( !blank ) {
+    $( '#blank' ).css( 'display', 'block' );
+  } else {
+    $( '#' + blank ).css( 'display', 'block' );
+    $( '#popUpUnlockTaskManager #pwd' ).val( '' );
+  }
+
+  $( '#' + id ).css( 'visibility', 'visible' );
+  $( '#' + id ).css( 'display', 'block' );
+  $( '#' + id ).css( 'opacity', '1' );
+
+}
+
+function showInformationModal( title, text ) {
+  $( '#modalFieldsRequired' ).modal( 'show' );
+  $( '#modalRequiredTitle' ).html( title );
+  $( '#modalFieldsRequired .modal-body p' ).html( text );
+  $( '#modalFieldsRequired .btn-modal-ok' ).append( CLOSE );
+
+  $( '.closeTitleModalLengthRequired, #modalFieldsRequired .btn-modal-ok' ).on( 'click', function() {
+    $( '#modalFieldsRequired' ).modal( 'hide' );
+  } );
+}
+
+function closeModal( el ) {
+  if ( el != undefined ) $( el ).closest( '.modal' ).modal( 'hide' );
+  else $( '.modal' ).modal( 'hide' );
+}
+
+/**
+ * Fonction pour fermer un popup
+ * @param {*} id
+ * @param {*} blank
+ */
+
+function closePopUp( id, blank ) {
+  $( 'html' ).css( 'overflow', 'visible' );
+  $( 'html, body' ).unbind();
+
+  if ( !blank ) {
+    $( '#blank' ).css( 'display', 'none' );
+  } else {
+    $( '#' + blank ).css( 'display', 'none' );
+  }
+
+  $( '#' + id ).css( 'visibility', 'hidden' );
+  $( '#' + id ).css( 'opacity', '0' );
+}
+
+// =============== POPUP EXTRACTION ========================
+/* -- XLS -- */
+
+var iframeContainer = $( '#ifr' );
+iframeContainer.html( '' );
+/* -------- */
+
+flatpickr( '#extractionStartDate, #extractionEndDate, #date, #expirationDate', {
+  enableTime: false,
+  'locale': window.navigator.language.split( '-' )[ 0 ],
+  dateFormat: 'd/m/Y',
+  static: true
+} );
+
+$( '#extractionStartDate' ).attr( 'readonly', false );
+$( '#extractionEndDate' ).attr( 'readonly', false );
+
+/**
+	* Fonction pour sauvegarder le fichier
+	*/
+$( '#popExtraction' ).on( 'click', async function() {
+  const btn = $( this );
+
+  // == Dates ==
+  let returnDateFormat = val => {
+    // Initial date string in value => dd/mm/yyyy
+    let split = val.split( '/' );
+    split = `${split[ 2 ]}-${split[ 1 ]}-${split[ 0 ]}`;
+    // Date string returned yyyy-mm-dd
+    return split;
+  };
+
+  var startDate = moment( returnDateFormat( $( '#extractionStartDate' ).val() ) ).format( 'YYYY-MM-DD' );
+  var endDate = moment( returnDateFormat( $( '#extractionEndDate' ).val() ) ).format( 'YYYY-MM-DD' );
+  // ===========
+
+  if ( startDate && endDate ) {
+    btn.addClass( 'loading' );
+    btn.attr( 'disabled', true );
+
+    try {
+      await loadIframe( startDate, endDate );
+      btn.removeClass( 'loading' );
+      btn.attr( 'disabled', false );
+      closeModal();
+    } catch ( e ) {
+      console.log( 'Error ! ', e );
+      btn.removeClass( 'loading' );
+      btn.attr( 'disabled', false );
+      closeModal();
+    }
+  } else {
+    alert( PLEASE_SET_ALL_REQUIRED_FIELDS );
+  }
+} );
+// ============== POPUP GESTION D'UTILISATEURS =====================
+$( id_popup_manage_users_close + ' , ' + class_popup_manage_users_back ).on( 'click', function() {
+  closePopUp( 'popUpManageUsers' );
+} );
+
+/**
+ * Load Extraction Iframe
+ * @param {string} startDate
+ * @param {string} endDate
+ * @returns
+ */
+async function loadIframe( startDate, endDate ) {
+  return new Promise( ( resolve, reject ) => {
+    const src = `/api/extraction/xls?startDate=${startDate}&endDate=${endDate}`;
+    var ifr = $( '<iframe id="iframee"/>' ).attr( 'src', src );
+    iframeContainer.append( ifr );
+
+    ifr.on( 'load', resolve );
+    ifr.on( 'error', () => {
+      reject( new Error( 'Error loading iframe' ) );
+    } );
+  } );
+}
+
+// =================== MODIFICATION D'UTILISATEUR ========================
+
+/**
+	 * Fermer le popup
+	 */
+$( id_close_popup_modif_user + ' , ' + class_popup_update_user_cancel ).on( 'click', function() {
+  closePopUp( 'popUpUpdateUser' );
+} );
+
+// ================== SECTOR / SERVICE ==================
+var sectors_services;
+
+function openPopUpSECTORSERVICE() {
+  $( '#modal-sector-service' ).modal( 'show' );
+
+  if ( sectors_services ) {
+    displaySECTORSERVICEInPopup();
+    return;
+  }
+
+  SectorService.get()
+    .then( sectorservice => {
+      sectors_services = sectorservice;
+      displaySECTORSERVICEInPopup();
+    } )
+    .catch( err => console.log( err ) );
+}
+
+function displaySECTORSERVICEInPopup( elements ) {
+  if ( elements != undefined ) sectors_services = elements;
+  let sectorServiceInit;
+
+  // Table
+  let tableSectorService = $( '#formManageSectorService #sectorServiceModalTable' );
+  $( tableSectorService ).DataTable().destroy();
+
+  // Tbody
+  let tbodySectorService = $( tableSectorService ).find( 'tbody' );
+  $( tbodySectorService ).html( '' );
+
+  $( tableSectorService ).find( '.sort-button' ).remove();
+  $( tableSectorService ).find( '.titleTr' ).after( sort_button );
+
+  if ( sectors_services && Array.isArray( sectors_services ) && sectors_services.length > 0 ) {
+    sectors_services.forEach( ( sector_service, i ) => {
+
+      let tr = $( `<tr class="trSectorService">
+								<td class="sectorServiceName" id="service_${sector_service._id}">${sector_service.name}</td>
+								<td class="rowTrash edit pencilCol">
+									<i class="fas fa-pencil-alt"></i>
+								</td>
+								<td class="rowTrash trash trashCol">
+									<i class="fas fa-trash-alt"></i>
+								</td>
+							</tr>` );
+
+      if ( i == 0 ) sectorServiceInit = $( tr );
+
+      // Click on modify option (pencil)
+      $( tr ).find( '.edit .fa-pencil-alt' ).on( 'click', function() {
+        let trSectorServiceSelected = $( this ).closest( '.trSectorService' );
+        let sectorserviceid = $( trSectorServiceSelected ).find( '.sectorServiceName' ).attr( 'id' );
+        sectorserviceid = sectorserviceid.split( '_' )[ 1 ];
+        let sectorserviceSend = sectors_services.find( sec_serv => sec_serv._id == sectorserviceid );
+        addUpdateSECTORSERVICE( 'modify', sectorserviceSend );
+      } );
+
+      // Clicl on delete option (trash)
+      $( tr ).find( '.trash .fa-trash-alt' ).on( 'click', deleteSECTORSERVICE );
+
+      $( tbodySectorService ).append( tr );
+
+    } );
+
+    $( sectorServiceInit ).trigger( 'click' );
+    createDataTable( $( tableSectorService ) );
+    $( tableSectorService ).css( { 'width': '100%' } );
+    createSortFunctionSECTORSERVICE( tableSectorService, sectors_services, displaySECTORSERVICEInPopup );
+  }
+}
+
+/**
+ * Function for add or update a sector service
+ * @param {String} action : add or modify
+ * @param {Object} sectorServiceReceived : Sector service to search (in case of modifying)
+ * @param {String} inputValue : Value of the input (name of sector service)
+ */
+function addUpdateSECTORSERVICE( action, sectorServiceReceived ) {
+  const $modalAdd = $( '#modal-add-som-confirm' );
+
+  let $modalFooter = $modalAdd.find( '.modal-footer' );
+  let btnConfirmAdd = $( `<button type="button" class="button btnBlue confirm">${OK}</button>` );
+  $( $modalFooter ).html( btnConfirmAdd );
+
+  let inputVal = sectorServiceReceived ? sectorServiceReceived.name : '';
+
+  let inputName = $( `<div style="display: inline-flex;" class="col-12" >
+							<div class="col-12 inputFormContainer">
+									<div class="input-group col-12">
+										<div class="input-group-prepend">
+											<span class="input-group-text input-left" for="name">
+												${NAME}
+											</span>
+										</div>
+										<div class="col-7 col-md-6">
+											<input value="${inputVal}" type="text" class="form-control input-right"  name="name" required aria-describedby="inputGroupPrepend" >
+                      <p class="error"></p>
+										</div>
+									</div>
+								</div>
+							</div>` );
+  let $modalBody = $modalAdd.find( '.modal-body' );
+
+  $( $modalBody ).html( '' );
+  let txtTitle = ( action == 'add' ) ? NEW_SECTOR_SERVICE : UPDATE_SECTOR_SERVICE;
+
+  $modalAdd.find( '.modal-title' ).html( txtTitle );
+  $( $modalBody ).html( inputName );
+  $modalAdd.modal( 'show' );
+
+  $( btnConfirmAdd ).on( 'click', function() {
+
+    let newName = $( inputName ).find( 'input' ).val();
+    if ( newName.length <= 0 ) {
+      $( inputName ).find( '.error' ).remove();
+      $( inputName ).find( 'input' ).after( $( `<p class="error">${PLEASE_WRITE_NAME}</p>` ) );
+      return;
+    }
+
+    let tableSectorService = $( '#formManageSectorService #sectorServiceModalTable' );
+
+    switch ( action ) {
+    case 'add' : {
+      let newSectorService = new SectorService( null, newName );
+      newSectorService.save()
+        .then( data => {
+          try {
+            $( tableSectorService ).DataTable().destroy();
+          } catch ( err ) {
+            console.log( err );
+          }
+
+          newSectorService._id = data._id;
+          sectors_services.push( newSectorService );
+          displaySECTORSERVICEInPopup();
+          closeModal( $modalAdd );
+        } )
+        .catch( err => {
+          if ( err.error_code == 'XSS_INJECT' ) {
+            $modalAdd.modal( 'hide' );
+            return showErrorCode( err );
+          }
+
+          let error = $( $modalBody ).find( '.error' );
+          error.html( err.error );
+        } );
+
+      break;
+    }
+    case 'modify': {
+      sectorServiceReceived.modify( newName )
+        .then( () => {
+          try {
+            $( tableSectorService ).DataTable().destroy();
+          } catch ( err ) {
+            console.log( err );
+          }
+          // Update data
+          let sector_service = sectors_services.find( s => s._id == sectorServiceReceived._id );
+          sector_service.name = newName;
+          displaySECTORSERVICEInPopup();
+          closeModal( $modalAdd );
+        } )
+        .catch( err => {
+          if ( err.error_code == 'XSS_INJECT' ) {
+            $modalAdd.modal( 'hide' );
+            return showErrorCode( err );
+          }
+
+          let error = $( $modalBody ).find( '.error' );
+          error.html( err.error );
+        } );
+      break;
+    }
+    }
+    return;
+  } );
+
+}
+
+/**
+ * Delete a sector service, and asking with a modal for the action
+ * @param {Event} $e : event element containing the tr element in modal of the sector service we want to delete
+ */
+function deleteSECTORSERVICE( e ) {
+  let $thisSectorService = e.currentTarget;
+  let trSectorServiceSelected = $( $thisSectorService ).closest( '.trSectorService' );
+  let sectorserviceid = $( trSectorServiceSelected ).find( '.sectorServiceName' ).attr( 'id' );
+  sectorserviceid = sectorserviceid.split( '_' )[ 1 ];
+  let $modalDelete = $( '#modal-delete-som-confirm' );
+
+  let $modalFooter = $( $modalDelete ).find( '.modal-footer' );
+  let btnConfirmDelete = $( `<button type="button" class="button btnRed confirm">${DELETE}</button>` );
+  $( $modalFooter ).html( btnConfirmDelete );
+
+  let $modalBody = $( $modalDelete ).find( '.modal-body' );
+
+  $( $modalDelete ).modal( 'show' );
+  $( $modalBody ).html( DELETE_SECTOR_SERVICE );
+
+  let tableSectorService = $( $thisSectorService ).closest( 'table' );
+
+  $( btnConfirmDelete ).on( 'click', function() {
+    const $this = $( this );
+    // Search object to delete
+    let sector_service_modify = sectors_services.find( s => s._id == sectorserviceid );
+
+    sector_service_modify.delete()
+      .then( () => {
+        try {
+          $( tableSectorService ).DataTable().destroy();
+        } catch ( err ) {
+          console.log( err );
+        }
+
+        sectors_services = sectors_services.filter( s => sectorserviceid != s._id );
+        $( $modalDelete ).modal( 'hide' );
+        displaySECTORSERVICEInPopup();
+      } )
+      .catch( err => {
+        $( $this ).attr( 'disabled', true );
+        $( $modalBody ).find( '.error' ).remove();
+        $( $modalBody ).append(
+          `<p class="error">${err.error ?? err}</p>`
+        );
+
+      } );
+  } );
+}
+
+function createSortFunctionSECTORSERVICE( table, elements, createTable, trSelected ) {
+  $( table ).find( '.sort-button' ).on( 'click', function() {
+    var $this = $( this );
+    var $th = $this.closest( 'th' );
+    var label = $th.attr( 'label' );
+    var currentSort;
+    $th.parent().find( 'th span.active' ).removeClass( 'active' );
+
+    if ( $this.hasClass( 'up' ) )
+      currentSort = 'up';
+    else if ( $this.hasClass( 'down' ) )
+      currentSort = 'down';
+
+    $this.addClass( 'active' );
+
+    if ( currentSort ) {
+      elements = elements.sort( function( a, b ) {
+        switch ( label ) {
+        default: {
+          return funcDefault();
+        }
+        }
+
+        function funcDefault() {
+          var _a = a[ label ] || '';
+          var _b = b[ label ] || '';
+          return a_b_sort( _a, _b );
+        }
+
+        function a_b_sort( _a, _b ) {
+          if ( typeof _a === 'string' ) _a = _a.toLowerCase();
+          if ( typeof _b === 'string' ) _b = _b.toLowerCase();
+          if ( _a > _b ) {
+            return currentSort === 'up' ? 1 : -1;
+          }
+          else if ( _a < _b ) {
+            return currentSort === 'up' ? -1 : 1;
+          }
+          else {
+            return 0;
+          }
+        }
+      } );
+      createTable( elements, trSelected );
+    }
+  } );
+}
+
+$( '#btnAddSectorService' ).on( 'click', function() {
+  addUpdateSECTORSERVICE( 'add' );
+} );
+
+// =========== TASKMANAGER ============
+
+$( class_popup_cancel_update_task_manager ).on( 'click', function() {
+  closePopUp( 'popUpUpdateTaskManager' );
+  $( '#addClosedDay' ).off( 'click' );
+} );
+
+/**
+ *
+ * @param {*} card
+ * @returns
+ */
+async function openPopupUpdateTask( card ) {
+  const _board = board;
+
+  const modal = $( '#modal-update-task' );
+  const modal_view_image = $( '#modal-view-image' );
+  const modal_complete_coment = $( '#modal-complete-comment' );
+  let taskmanager = new TaskManager( { _id: card.cftaskmanager_id[ 0 ] } );
+  await taskmanager.load();
+
+  const isAdmin = ( admn || taskManager.admin.includes( userID ) );
+
+  const task = new Card( card );
+  const gallery = new Gallery();
+  await gallery.init( true );
+
+  const notAdminAndNotAuditorOfTask = ( !isAdmin &&  task.users.indexOf( userID ) == -1 );
+  if ( notAdminAndNotAuditorOfTask ) return;
+
+  // Update Global variables (think to avoid using them)
+  currentUpdatedTask = task;
+  localStorage.inactif = false;
+
+  const modal_elements = {
+    divs: {
+      information_container: modal.find( '#modal-print-information-container' ),
+      checkpoints_images: modal.find( '#modal-check-photos-container' ).html( '' ),
+      nokimages: modal.find( '#modal-check-nok-photos-container' ).html( '' ),
+      commentary: modal.find( '#modal-card-commentary' ).html( '' ),
+      card_pic: modal.find( '#modal-card-audit-pics-ctn' ).hide(),
+      card_SR: modal.find( '#modal-card-SR' ).css( 'display', 'none' ),
+      status_container: modal.find( '#modal-container-statut' ),
+      last_result: modal.find( '#modal-last-result-section' ),
+      audit_image_container: modal.find( '#modal-card-audit-pics-ctn .modal-image-container-audit-edit' ).html( '<i class="fas fa-camera photo-icon">+</i>' )
+    },
+    labels: {
+      h5_task_title: modal.find( '#modal-task-title' ).text( '' ),
+      h4_statusnamediv: modal.find( '#modal-card-status-name' ).text( '?' ),
+      p_dateError: modal.find( '#modal-audit-date-err' ),
+      p_commentError: modal.find( '#modal-comment-err' )
+    },
+    inputs: {
+      place: modal.find( '#modal-card-place' ).val( '' ),
+      themes: modal.find( '#modal-card-themes-ctn' ).val( '' ),
+      sector_service: modal.find( '#modal-card-sectorservice' ).val( '' ),
+      audit_user: modal.find( '#modal-card-audit-user' ).val( '' ),
+      last_result_date: modal.find( '#modal-card-last-result-date' ).val( '' ),
+      last_result_time: modal.find( '#modal-card-last-result-time' ).val( '' ),
+      frequency: modal.find( '#modal-card-frequency' ).val( '' ),
+      audit_date: modal.find( '#modal-audit-date' ).val( '' ),
+      audit_pic: modal.find( '#audit-pic-input' ).val( '' ),
+      new_comment: modal.find( '#modal-new-comment' ).val( '' )
+    },
+    lists: {
+      checkpoints: modal.find( '#modal-card-checkpoints-list' ).html( '' ),
+      nok: modal.find( '#modal-card-checkpoints-nok-list' ).html( '' )
+    },
+    buttons: {
+      ok: {
+        element: modal.find( '.popupUpdateTaskOk' ),
+        setStatus: async () => {}
+      },
+      na: {
+        element: modal.find( '.popupUpdateTaskNa' ),
+        setStatus: async () => {}
+      },
+      nok: {
+        element: modal.find( '.popupUpdateTaskNOk' ),
+        setStatus: async () => {}
+      },
+      read: {
+        element: modal.find( '#modal-card-nok-non-read-ctn' ).hide(),
+        setRead: async () => {}
+      }
+    }
+  };
+
+  modal.find( '.photo-statut-result-container-bg' )
+    .html( '' )
+    .css( { 'background-image': 'none', 'display': 'block' } );
+
+  // Hide elements
+  modal_elements.labels.p_commentError.hide();
+  modal_elements.labels.p_dateError.hide();
+
+  flatpickr( modal_elements.inputs.audit_date, {
+    enableTime: true,
+    locale: window.navigator.language.split( '-' )[ 0 ],
+    dateFormat: 'd/m/Y H:i',
+  } );
+
+  let default_audit_date = moment().format( 'DD/MM/YYYY HH:MM' );
+  modal_elements.inputs.audit_date
+    .attr( 'readonly', false )
+    .val( default_audit_date );
+
+  // Show form
+  modal.find( 'form' ).show();
+
+  // Show buttons
+  modal_elements.buttons.ok.element.show();
+  modal_elements.buttons.na.element.show();
+  modal_elements.buttons.nok.element.show();
+
+  modal_elements.labels.h5_task_title.html( task.title );
+
+  let state = task.getState();
+  let hasBeenAudited = ( state != STATE.toaudit );
+  let imgStat = getImageFromCheckState( state );
+  let src = `${PREFIXAPI}/ressources/images/cards/card1/${imgStat.src}`;
+  let alt = imgStat.alt;
+  let statetoHide = '';
+
+  switch ( state ) {
+  case STATE.ok  :
+    statetoHide = '.popupUpdateTaskOk';
+    break;
+  case STATE.nok :
+    statetoHide = '.popupUpdateTaskNOk';
+    break;
+  case STATE.nnok :
+    statetoHide = '.popupUpdateTaskNOk';
+    break;
+  case STATE.na :
+    statetoHide = '.popupUpdateTaskNa';
+    break;
+  case STATE.toaudit:
+    modal_elements.divs.status_container.hide();
+    modal_elements.divs.last_result.hide();
+    break;
+  }
+
+  modal.find( statetoHide ).hide();
+
+  if ( hasBeenAudited ) {
+    modal_elements.divs.status_container.show();
+    modal_elements.divs.last_result.show();
+
+    let img_status = `<img width="100px" height="100px" src="${src}" alt="${alt}">`;
+    modal_elements.divs.status_container.find( '.imageStatutContainer' ).html( img_status );
+
+    let img_last_result = `<img width="150px" height="150px" src="${src}" alt="${alt}">`;
+    modal_elements.divs.last_result.find( '.imageStatutContainer' ).html( img_last_result );
+  }
+
+  // Fill input values
+  modal_elements.inputs.sector_service.val( task.uap_services );
+  modal_elements.inputs.place.val( task.place );
+  modal_elements.inputs.frequency.val( FREQUENCY_LABELS[ task.frequency ] );
+
+  // CHECKPOINTS
+  let checkpoints = task.checkpoints.filter( chk => chk != '' );
+  checkpoints
+    .forEach( chk => modal_elements.lists.checkpoints.append( `<li>• ${chk}</li>` ) );
+
+  let checkpointsFiles = task.picturesCheckpoints.map( f => gallery.getFileByFilenameForCards( f ) ).filter( f => f );
+
+  checkpointsFiles
+    .forEach( file => modal_elements.divs.checkpoints_images.append( gallery.generateVisualFileContainer( file ) ) );
+
+  //modal_view_image.find( '.modal-content' ).on( 'mouseleave', () => modal_view_image.modal( 'hide' )  );
+
+  // NOK
+  let nok_reactions = task.nok.filter( nok => nok != '' );
+  nok_reactions.forEach( nok => modal_elements.lists.nok.append( `<li>• ${nok}</li>` ) );
+
+  let nokFiles = task.picturesNok.map( f => gallery.getFileByFilenameForCards( f ) ).filter( f => f );
+  nokFiles
+    .forEach( file => modal_elements.divs.nokimages.append( gallery.generateVisualFileContainer( file ) ) );
+
+  // THEMES
+  if ( task.themes.length > 0 ) {
+    let theme = themes[ task.themes[ 0 ] ];
+    modal_elements.inputs.themes.val( theme.name.toUpperCase() );
+    modal_elements.divs.information_container.css( { 'border': `10px solid ${theme.color}` } );
+
+    let display = ( card[ 'safetyRegulated' ] ) ? 'block' : 'none';
+    modal_elements.divs.card_SR.css( 'display', display );
+  }
+
+  // Take off click button functions
+  modal_elements.buttons.ok.element.off( 'click' );
+  modal_elements.buttons.nok.element.off( 'click' );
+  modal_elements.buttons.na.element.off( 'click' );
+
+  let reloadAfterAction = () => {
+    if ( _board ) {
+      _board.reloadBoard( _board.monday );
+      _board.reloadNOKNonReadTasks();
+      _board.reloadNonAuditedTasksLastWeek();
+      updateFirstLevelBarCharts();
+    }
+  };
+
+  let trySetStatus = async ( btnElement, setStatus ) => {
+    let enablebtn = () => {
+      btnElement.prop( 'disabled', false );
+      btnElement.removeClass( 'loading' );
+    };
+
+    let disblaebtn = () => {
+      btnElement.prop( 'disabled', true );
+      btnElement.addClass( 'loading' );
+    };
+
+    return new Promise( ( resolve, reject ) => {
+      let verifAuditDate = () => {
+        // Verify date
+        if ( $.trim( modal_elements.inputs.audit_date.val() ).length <= 0 ) {
+          modal_elements.labels.p_dateError.css( { 'display': 'block' } );
+          modal_elements.inputs.audit_date.trigger( 'focus' );
+          return false;
+        }
+        return true;
+      };
+
+      let verif = verifAuditDate();
+      // Verify comment
+      let isEmpty = ( ( modal_elements.inputs.new_comment.val().trim() ).length <= 0 );
+      if ( SETTINGS.CommentCardOK && isEmpty )	 {
+        modal_elements.labels.p_commentError.css( { 'display': 'block' } );
+        modal_elements.inputs.new_comment.trigger( 'focus' );
+        return reject( 'No comment' );
+      }
+
+      if ( !verif ) {
+        enablebtn();
+        return reject( 'Invalid Date Audit Date' );
+      }
+
+      // Set comment
+      const comment = modal_elements.inputs.new_comment.val();
+
+      // Get audit picture
+      let audit_pic = modal_elements.divs.card_pic.find( '.audit-pic-input' );
+
+      let file = FileGallery.createFileObjFromInput( audit_pic );
+      if ( file ) {
+        file.dependency = FileGallery.DEPENDENCIES.task;
+      }
+
+      let prms = {
+        comment
+      };
+
+      disblaebtn();
+
+      if ( file ) {
+        file.save()
+          .then( () => {
+            prms.auditpictures = file.filename;
+            setStatus( prms )
+              .then( () => {
+                closeModal();
+                enablebtn();
+                resolve();
+              } )
+              .catch( e => {
+                enablebtn();
+                reject( e );
+              } );
+          } )
+          .catch( e => {
+            enablebtn();
+            reject( e );
+          } );
+        return;
+      } else {
+        prms.auditpictures = null;
+        setStatus( prms )
+          .then( () => {
+            closeModal();
+            enablebtn();
+            resolve();
+          } )
+          .catch( e => {
+            enablebtn();
+            reject( e );
+          } );
+      }
+    } );
+  };
+
+  // LAST RESULT
+  if ( task.getState() == Card.STATE.unaudited ) {
+    // Not audited
+    modal_elements.buttons.ok.element.hide();
+    modal_elements.buttons.na.element.hide();
+    modal_elements.buttons.nok.element.hide();
+
+    modal.find( '.modal-footer' ).hide();
+
+    modal.find( '.notAudited' ).hide();
+
+    modal.find( '.photoResultContainer' ).hide();
+    modal.find( '.commentResultContainer' ).hide();
+    modal.find( '.infoResultContainer' ).hide();
+    modal_elements.labels.h4_statusnamediv.html( task.getState().toUpperCase() );
+    modal.find( 'form' ).attr( 'id', 'FormNotAvailable' );
+  } else {
+    // ==  Action buttons  ==
+    modal_elements.buttons.ok.setStatus = async () => await trySetStatus( modal_elements.buttons.ok.element, params => task.setOK( params )  );
+    modal_elements.buttons.nok.setStatus = async () => await trySetStatus( modal_elements.buttons.nok.element, params => task.setNOK( params )  );
+    modal_elements.buttons.na.setStatus = async () => await trySetStatus( modal_elements.buttons.na.element, params => task.setNA( params )  );
+
+    modal_elements.buttons.ok.element.on( 'click', async () => {
+      try {
+        await modal_elements.buttons.ok.setStatus();
+        reloadAfterAction();
+      } catch ( e ) {
+        if ( e.error_code == 'XSS_INJECT' ) {
+          return showErrorCode( e );
+        }
+        console.error( e );
+      }
+    } );
+
+    modal_elements.buttons.nok.element.on( 'click', async () => {
+      try {
+        await modal_elements.buttons.nok.setStatus();
+        reloadAfterAction();
+      } catch ( e ) {
+        if ( e.error_code == 'XSS_INJECT' ) {
+          return showErrorCode( e );
+        }
+        console.error( e );
+      }
+    } );
+
+    modal_elements.buttons.na.element.on( 'click', async () => {
+      try {
+        await modal_elements.buttons.na.setStatus();
+        reloadAfterAction();
+      } catch ( e ) {
+        if ( e.error_code == 'XSS_INJECT' ) {
+          return showErrorCode( e );
+        }
+        console.error( e );
+      }
+    } );
+
+    // ==================
+
+    $( '#modal-update-task .modal-footer' ).show();
+    $( '#new_audit' ).html( MODIFY_AUDIT );
+
+    const hasHistory = task.history_status && task.history_status.length > 0;
+
+    if ( hasHistory ) {
+      let lastStatus = task.history_status.slice( -1 )[ 0 ];
+
+      let user = taskManager.getUserById( lastStatus.userid );
+      let audit_user = user ? `${user.firstname} ${user.lastname}` : '';
+
+      modal.find( '.modal-footer' ).show();
+      modal.find( '.photoResultContainer' ).show();
+      modal.find( '.commentResultContainer' ).show();
+      modal.find( '.infoResultContainer' ).show();
+
+
+      modal_elements.inputs.audit_user.val( audit_user );
+      modal_elements.inputs.last_result_date.val( DateJS.formatDateDMY( lastStatus.date ) );
+      modal_elements.inputs.last_result_time.val( DateJS.formatDateHM( lastStatus.date ) );
+      modal_elements.divs.commentary.html( '' );
+
+      if ( lastStatus.comment ) {
+        let last_comment_txt = lastStatus.comment.split( '\n\n' );
+        last_comment_txt.forEach( comm => {
+          const p = $( '<p class="last_comment"></p>' );
+          p.text( comm );
+          modal_elements.divs.commentary.append( p );
+        } );
+      }
+
+      modal_elements.labels.h4_statusnamediv.html( lastStatus.status ? lastStatus.status.toUpperCase() : '?' );
+
+      let isAdminAndNokNoRead = ( isAdmin && ( lastStatus.status == STATE.nok && !lastStatus.readed ) );
+
+      if ( isAdminAndNokNoRead ) {
+        modal_elements.buttons.read.setRead = () => Card.setReadCards( [ task ] );
+        modal_elements.buttons.read.element
+          .off( 'click' )
+          .on( 'click',  async () => {
+            await modal_elements.buttons.read.setRead();
+            reloadAfterAction();
+            closeModal( modal );
+          } )
+          .show();
+      } else {
+        modal_elements.buttons.read.element.hide();
+      }
+
+      if ( SETTINGS.editCardAfterAudit || isAdmin ) {
+        modal.find( '.notAudited' ).show();
+      }
+
+      let hasPicture = SETTINGS.auditPicture && lastStatus.auditpictures && lastStatus.auditpictures.length > 0;
+
+      if ( hasPicture ) {
+        modal.find( '.photoResultContainer' ).show();
+        let picture = lastStatus.auditpictures[ 0 ].replace( /.*[\/\\]/, '' );
+        let filePicture = new FileGallery( {
+          filename: picture, original_name: picture, dependency: FileGallery.DEPENDENCIES.task
+        } );
+
+        let srcName = filePicture.getSrc();
+        let elem = modal.find( '.photo-statut-result-container-bg' );
+
+        // Show image modal
+        elem
+          .css( { 'background-image': `url('${srcName}')` } )
+          .off( 'click' )
+          .on( 'click', () => {
+            filePicture.show();
+          } );
+        //.on( 'mouseleave', () => modal_view_image.modal( 'hide' ) );
+      } else {
+        modal.find( '.photoResultContainer' ).hide();
+      }
+
+    } else {
+      $( '.notAudited' ).show();
+      $( '#new_audit' ).html( MARKSTATUS );
+      modal_elements.buttons.read.element.hide();
+    }
+  }
+
+  // Audit pictures
+  if ( SETTINGS.auditPicture ) {
+    allowAuditPicture( modal_elements.divs.card_pic, modal_elements.divs.audit_image_container );
+  }
+
+  modal.find( '.btnComment' ).on( 'click', function( e ) {
+    e.preventDefault();
+    modal_complete_coment.modal( 'show' );
+  } );
+
+  modal_elements.labels.p_commentError.hide();
+
+  $( modal  ).on( 'shown.bs.modal', function() {
+    $( '.pbody-update-card' ).scrollTop( 0 );
+    $( modal ).css( { 'visibility': 'visible' } );
+  } );
+
+  $( modal ).modal( 'show' );
+  $( modal ).css( { 'visibility': 'hidden' } );
+  return modal_elements;
+}
+
+function closeViewImage() {
+  $( '#modal-view-image' ).modal( 'hide' );
+}
+
+function closeCommentModal() {
+  $( '#modal-complete-comment' ).modal( 'hide' );
+}
+
+/**
+ * Allows to set an image for the audit
+ * shows the element and show the preview image selected
+ * @param {JQuery} card_pic : Container we want to show
+ * @param {string} class_image_container : Container we want to show the image preview
+ */
+function allowAuditPicture( card_pic, class_image_container ) {
+  card_pic.show();
+  card_pic.off( 'click' );
+  let input = card_pic.find( 'input' )[ 0 ];
+  card_pic.on( 'click', () => input.click() );
+
+  $( input ).on( 'change', async e => {
+    // Preview audit picture
+    let src = await FileGallery.previewInputImage( e.currentTarget );
+    let imageContainerTxt = `<div class="photo-audit-prev-container">
+                <img class="hoverImage"
+                  src="${src}"
+                style="width: auto;"/></div>`;
+    card_pic.find( class_image_container )
+      .html( $( imageContainerTxt ) );
+  } );
+
+}

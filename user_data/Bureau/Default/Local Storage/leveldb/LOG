@@ -1,3 +1,2 @@
-2026/02/19-09:38:38.164 7fc4 Reusing MANIFEST C:\Gestion_affichage\user_data\Bureau\Default\Local Storage\leveldb/MANIFEST-000001
-2026/02/19-09:38:38.174 7fc4 Recovering log #3
-2026/02/19-09:38:38.175 7fc4 Reusing old log C:\Gestion_affichage\user_data\Bureau\Default\Local Storage\leveldb/000003.log 
+2026/02/19-11:03:52.404 4bac Creating DB C:\Gestion_affichage\user_data\Bureau\Default\Local Storage\leveldb since it was missing.
+2026/02/19-11:03:52.421 4bac Reusing MANIFEST C:\Gestion_affichage\user_data\Bureau\Default\Local Storage\leveldb/MANIFEST-000001

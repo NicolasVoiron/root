@@ -4,20 +4,20 @@
             {
                 "url": "https://se.aubenas.kamishibaii.prod-eo.com/taskManager?taskmanagerid=685bb5cf068e9b000c53565a",
                 "zoom": 100,
-                "wait_time": 5,
-                "freq": 300,
+                "wait_time": 30,
+                "freq": 60,
                 "duration": 15,
                 "split": 2,
-                "last_update": "09:38:36"
+                "last_ts": 1771495382.3823707,
+                "last_update_str": "11:03"
             },
             {
-                "url": "http://10.192.43.139:1880/ui",
-                "zoom": 45,
+                "url": "http://10.192.43.139:1880/ui/",
+                "zoom": 100,
                 "wait_time": 5,
-                "freq": 300,
-                "duration": 15,
-                "split": 1,
-                "last_update": "09:38:46"
+                "freq": 30,
+                "duration": 20,
+                "split": 1
             }
         ]
     }

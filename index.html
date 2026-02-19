@@ -2,72 +2,90 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>FactoryCast Pro - View</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FactoryCast Pro - Player</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
-        #stage { display: flex; width: 100vw; height: 100vh; justify-content: center; align-items: center; }
-        .slide { position: absolute; width: 100%; height: 100%; opacity: 0; transition: opacity 1.5s ease-in-out; display: flex; }
+        :root { --schneider-green: #3dcd58; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #000; color: white; overflow: hidden; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        #container { display: flex; width: 100vw; height: 100vh; position: relative; }
+        .slide { position: absolute; width: 100%; height: 100%; display: flex; opacity: 0; transition: opacity 1.5s ease-in-out; }
         .slide.active { opacity: 1; }
         .segment { flex: 1; height: 100%; object-fit: contain; background: #000; }
-        #overlay { position: fixed; bottom: 0; left: 0; width: 100%; height: 5px; background: rgba(255,255,255,0.2); }
-        #progress { height: 100%; background: #3dcd58; width: 0%; transition: width 0.1s linear; }
-        #badge { position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: #3dcd58; padding: 5px 10px; font-size: 12px; border: 1px solid #3dcd58; }
+        #ui-layer { position: fixed; bottom: 0; left: 0; width: 100%; z-index: 100; }
+        #progress-bar { height: 6px; background: var(--schneider-green); width: 0%; transition: width 0.1s linear; }
+        #status-bar { background: rgba(0,0,0,0.7); padding: 8px 15px; font-size: 14px; display: flex; justify-content: space-between; border-top: 1px solid #444; }
+        .sync-tag { color: var(--schneider-green); font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="badge">Sync: --:--</div>
-    <div id="stage"></div>
-    <div id="overlay"><div id="progress"></div></div>
+    <div id="container"></div>
+    <div id="ui-layer">
+        <div id="progress-bar"></div>
+        <div id="status-bar">
+            <div id="info-point">Chargement...</div>
+            <div id="info-sync">Dernière MàJ : <span class="sync-tag" id="last-sync">--:--</span></div>
+        </div>
+    </div>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const canal = urlParams.get('canal') || 'ATELIER_1';
+        const params = new URLSearchParams(window.location.search);
+        const canal = params.get('canal') || Object.keys(config)[0];
         let config = {};
-        let currentIndex = 0;
+        let siteIndex = 0;
 
-        async function loadConfig() {
-            const resp = await fetch(`config.json?v=${Date.now()}`);
-            config = await resp.json();
-            render();
+        async function fetchConfig() {
+            const r = await fetch(`config.json?nocache=${Date.now()}`);
+            config = await r.json();
         }
 
-        function render() {
+        async function play() {
+            await fetchConfig();
             const sites = config[canal].sites;
-            const site = sites[currentIndex];
-            const stage = document.getElementById('stage');
+            if (!sites || sites.length === 0) {
+                document.getElementById('info-point').innerText = "Aucun site configuré.";
+                return;
+            }
+
+            const currentSite = sites[siteIndex];
+            const container = document.getElementById('container');
             
-            // Création du slide
+            // Création du nouveau slide
             const slide = document.createElement('div');
-            slide.className = 'slide active';
+            slide.className = 'slide';
             
-            const segments = site.split || 1;
-            for(let i=0; i<segments; i++) {
-                const img = document.createElement('img');
-                const suffix = segments > 1 ? `_p${i}` : '';
-                img.src = `displays/${canal}_${currentIndex}${suffix}.png?v=${Date.now()}`;
+            const numSegments = currentSite.split || 1;
+            for(let i=0; i<numSegments; i++) {
+                const img = new Image();
+                const suffix = numSegments > 1 ? `_p${i}` : '';
+                img.src = `displays/${canal}_${siteIndex}${suffix}.png?v=${Date.now()}`;
                 img.className = 'segment';
                 slide.appendChild(img);
             }
 
-            stage.innerHTML = '';
-            stage.appendChild(slide);
-            document.getElementById('badge').innerText = `Point: ${canal} | Maj: ${site.last_update || 'N/A'}`;
+            // Transition
+            container.innerHTML = '';
+            container.appendChild(slide);
+            setTimeout(() => slide.classList.add('active'), 50);
 
-            // Progress Bar & Rotation
-            let duration = site.duration * 1000 || 15000;
+            // UI Update
+            document.getElementById('info-point').innerText = `POINT : ${canal} | Dashboard ${siteIndex + 1}/${sites.length}`;
+            document.getElementById('last-sync').innerText = currentSite.last_update_str || 'N/A';
+
+            // Timer Rotation
+            let duration = (currentSite.duration || 15) * 1000;
             let start = Date.now();
             let timer = setInterval(() => {
-                let perc = (Date.now() - start) / duration * 100;
-                document.getElementById('progress').style.width = perc + '%';
-                if(perc >= 100) {
+                let elapsed = Date.now() - start;
+                document.getElementById('progress-bar').style.width = (elapsed / duration * 100) + '%';
+                if(elapsed >= duration) {
                     clearInterval(timer);
-                    currentIndex = (currentIndex + 1) % sites.length;
-                    if(currentIndex === 0) loadConfig(); else render();
+                    siteIndex = (siteIndex + 1) % sites.length;
+                    play(); // Re-boucle
                 }
             }, 100);
         }
 
-        loadConfig();
+        play();
     </script>
 </body>
 </html>
