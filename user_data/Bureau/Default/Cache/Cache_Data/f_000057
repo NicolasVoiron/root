@@ -1,0 +1,1289 @@
+var Board = function() {
+  // ==== TABLE CARDS COLORS //
+  var thead, tbody;
+  var months = {};
+
+  Object.keys( MONTHS_LABELS ).forEach( key => {  months[ key ] = MONTHS_LABELS[ key ];  } );
+
+  var Board = function( container, manager_id, monday, users, year, todayColor, settings, themes ) {
+    this.monday = monday;
+    this.users = users;
+    this.year = monday.year();
+    this.month = monday.month();
+    this.todayColor = todayColor || '#8b8888;';
+    this.boardContainer = container;
+    this.manager_id = manager_id;
+    this.cards = [];
+    this.settings = settings || {};
+    this.themes = themes;
+    this.visibility_mode = taskManager.visibility_mode || TaskManager.visibility_mode.daily;
+    this.gralContainer = container.closest( '.gralContainerLeft' );
+    this.active = true;
+  };
+
+  Board.prototype.init = function() {
+    this.boardContainer.find( 'thead' ).html( '' );
+    this.boardContainer.find( 'tbody' ).html( '' );
+
+    $( '#postitTab-fixed' ).find( 'thead' ).html( '' );
+  };
+
+  Board.prototype.build = async function( mon, cb, rebuilded ) {
+    this.year = mon ? mon.year() : this.year;
+    this.month = mon ? mon.month() : this.month;
+    this.monday = mon ? mon : this.monday;
+    $( '#boardContainerLeft' ).css( 'visibility', 'hidden' );
+
+    if ( this.visibility_mode == TaskManager.visibility_mode.weekly
+        && !this.gralContainer.hasClass( 'weeklyBoard' ) ) {
+      this.gralContainer.addClass( 'weeklyBoard' );
+    }
+
+    this.buildThead();
+    await this.buildTbody();
+
+    this.buildCards( function() {
+      resizeUserImage( '#boardContainerLeft' );
+      if ( rebuilded ) Evnt.emit( Board.event.BoardCardReLoaded );
+      else Evnt.emit( Board.event.BoardCardLoaded );
+      $( '#boardContainerLeft' ).css( 'visibility', 'visible' );
+      if ( typeof cb === 'function' ) cb();
+    } );
+    if ( rebuilded) Evnt.emit( Board.event.BoardReBuilded );
+    else Evnt.emit( Board.event.BoardBuilded );
+  };
+
+  Board.prototype.buildThead = function() {
+    $( '#postitTab-fixed' ).find( 'thead' ).html( '' );
+    this.boardContainer.find( 'thead' ).html( '' );
+    var today = moment().startOf( 'day' );
+
+    thead = `<tr class="title-table-tr">
+					      <th class="previousWeek" id="previousWeek"> < </th>
+					      <th colspan="6" class="title-text" id="fixTableTitle"></th>
+					      <th class="nextWeek" id="nextWeek"> > </th>
+				      </tr>`;
+
+    thead += '<tr>';
+    if ( this.visibility_mode == TaskManager.visibility_mode.daily ) {
+      thead += `<th colspan="2" class="col-2 yearThead">${months[ this.month ]} ${this.year}</th>`;
+      // == DAILY ==
+      let currentDay = today.clone();
+      for ( let i = 0; i < 5; i++, currentDay.add( 1, 'day' ) ) {
+        thead += '<th ';
+        thead += ( i == 4 ) ? 'colspan="2"' : '';
+        let classTh = ( i == 0 ) ? `monday col-2 day${i}` : `col-2 day${i}`;
+
+        if ( currentDay.isSame( this.monday.clone().startOf( 'day' ) ) ) {
+          classTh += ' today';
+          thead += `style="background-color: ${this.todayColor}; color:white;" `;
+        }
+
+        thead += ( i == 0 ) ? ' id="monday"' : '';
+        thead += ` class="${classTh}"`;
+
+        thead += `date="${this.monday.format( 'YYYY-MM-DD' ) }">
+                    <span class="tabDay">
+                      ${DateJS.formatDay( this.monday, i )} 
+                    </span>
+                    ${DateJS.formatDateDM( this.monday, i )}
+                </th>`;
+      }
+    } else {
+      let month = this.monday.month();
+      let year = this.monday.year();
+
+      thead += `<th colspan="2" class="yearThead">${months[ month ]} ${year}</th>`;
+
+      // == WEEKLY ==
+      const weekStart = this.monday.clone();
+      const friday = weekStart.clone().day( 5 );
+      thead += `<th colspan="6" class="week${this.monday.week()}" id="monday" date="${this.monday.format( 'YYYY-MM-DD' )}">
+                    <span class="tabDay">
+                    ${moment( weekStart ).format( 'DD/MM' )} - ${ moment( friday ).format( 'DD/MM' ) }
+                  </span>
+                </th>`;
+    }
+    thead += '</tr>';
+    thead = $( thead );
+    Evnt.emit( Board.event.BoardTheadBuilded );
+  };
+
+  Board.prototype.buildTbody = async function() {
+    this.boardContainer.find( 'tbody' ).html( '' );
+    $( '#postitTab-fixed' ).find( 'tbody' ).html( '' );
+
+    var today = moment().format( 'DD/MM/YYYY' );
+    tbody = '';
+
+    for ( let i in this.users ) {
+      let style = 'border-bottom: 1px solid var(--gray);';
+      let user_profile_null = '/kamishibai/ressources/images/user_profile_man.jpg';
+      let avatar;
+
+      if ( this.users[ i ].hasOwnProperty( 'avatar' ) && this.users[ i ].avatar ) {
+        avatar =  this.users[ i ].avatar;
+      } else {
+        avatar = user_profile_null;
+      }
+
+      avatar = `<img src="${formatHTTPRoute( avatar )}" alt="avatar" />`;
+
+      var days = [ 'monday', 'tuesday', 'wednesday', 'thursday', 'friday' ];
+
+      let onclickUser = '';
+      if ( admn || userID == this.users[ i ]._id ) {
+        onclickUser = 'onClick="updateUser(\'' + this.users[ i ]._id + '\')"';
+      }
+
+      tbody += `<tr id="${this.users[ i ]._id}" class="tr-users">
+							    <td colspan="2" class="thUser" ${onclickUser} style="${style}; visibility:hidden;">
+                    <div class='containerthUserContent'>
+                      <div class="container_user_image">
+                        ${avatar}
+                      </div>
+				    				  <p>${this.users[ i ].firstname} ${this.users[ i ].lastname.toUpperCase()}</p>
+    								</div>
+                  </td>`;
+
+      if ( this.visibility_mode == TaskManager.visibility_mode.daily ) {
+        // == DAILY ==
+        for ( let d = 0; d < days.length; d++ ) {
+          let day = days[ d ];
+
+          let date = moment( this.monday ).clone().add( d, 'days' ).format( 'DD/MM/YYYY' );
+
+          let classTd = `${day}`;
+
+          let bg = '';
+
+          // == Check if its previous week ==
+          let mon = moment().startOf( 'isoWeek' );
+          let dateCurrentInTable = moment( date, 'DD/MM/YYYY' );
+
+          // ================================
+          let closedDay = isAClosedDay( taskManager, dateCurrentInTable.format( 'DD/MM/YYYY' ) );
+
+          classTd += closedDay ? ' notAvailable' : '';
+
+          // =================
+          if ( dateCurrentInTable.isBefore( mon ) && !closedDay ) {
+            classTd += ' notAvailable';
+          }
+
+          if ( today == date && !closedDay ) {
+            classTd += ' today';
+          }
+          let colspan = '1';
+
+          style += bg;
+          if ( d == 4 ) colspan = '2';
+          if ( i == this.users.length - 1 ) classTd += ' lastUser';
+
+          tbody += `<td colspan="${colspan}" style="${style}" class="${classTd} calendarDrop" userID="${this.users[ i ]._id}" date="${date}">
+                    <li class="list_card style_card_${SETTINGS.styleCard}"></li>
+                 </td>`;
+        }
+      } else {
+        // == WEEKLY ==
+        const monday = this.monday.clone(); // Monday of the week
+        const friday = monday.clone().day( 5 ).endOf( 'day' );
+
+        let classTd = ( i == this.users.length - 1 ) ? ' lastUser' : '';
+
+        // Check if the dates are in the past
+        let currentMonday = moment().startOf( 'isoWeek' );
+        if ( monday.isBefore( currentMonday ) ) {
+          classTd += ' notAvailable';
+        } else {
+          // Check if is a closed week (Monday to Friday closed)
+          const startDateWeek = monday.clone();
+
+          let countClosedDays = true;
+          while ( startDateWeek.isBefore( friday ) ) {
+            countClosedDays &= isAClosedDay( taskManager, startDateWeek.format( 'DD/MM/YYYY' ) );
+            startDateWeek.add( 1, 'day' );
+          }
+
+          classTd += ( countClosedDays ) ? ' notAvailable' : '';
+        }
+
+        tbody += `<td colspan="7" style="${style}" class="${classTd} calendarDrop" userID="${this.users[ i ]._id}" date="${monday.format( 'DD/MM/YYYY' )}" week="${monday.week()}">
+                  <li class="list_card style_card_${SETTINGS.styleCard}"></li>
+               </td>`;
+      }
+
+      tbody += '</tr>';
+    }
+    return tbody;
+  };
+
+  Board.prototype.buildCards = function( cb ) {
+    this.boardContainer.find( 'tbody td' ).removeClass( 'hardWorkloadBg' );
+    this.boardContainer.find( 'tbody td li' ).html( '' );
+    $( '#postitTab-fixed' ).find( 'tbody td li' ).html( '' );
+    this.cards = [];
+    let DISPLAY_THEME_SHADOW = this.settings && this.settings.hasOwnProperty( 'themeShadowOnCard' ) ? this.settings.themeShadowOnCard : false;
+
+    // For daily
+    let wd = [ 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday' ];
+    let monday = this.monday.clone();
+    let sunday = monday.clone().endOf( 'isoWeek' );
+
+    const start = monday.toISOString(); // Start in monday
+    const end = sunday.toISOString();   // End at weekend
+
+    let done = 0;
+    this.users.forEach( user => {
+      user.loadCardsByDate( start, end, this.manager_id )
+        .then( tasks => {
+          if ( tasks && tasks.length > 0 ) {
+          // Sorting tasks
+            tasks = tasks.sort( ( a, b ) => {
+              if ( a.delivery_date < b.delivery_date ) return -1;
+              if ( a.delivery_date > b.delivery_date ) return 1;
+              else return 0;
+            } );
+            tasks.forEach( task => {
+
+              let card = new Card( task );
+              this.cards.push( card );
+              let title = card.title.replace( /'/g, '&apos;' ) ;
+              let text2draw = '<b class="card_text">' + title + '</b>';
+              let limit = 300 ;
+              let deliveryDate = moment( card.delivery_date );
+
+              if ( moment( start ).isSameOrBefore( deliveryDate ) && moment( end ).isSameOrAfter( deliveryDate ) ) {
+                let dayOrWeek = ( this.visibility_mode == TaskManager.visibility_mode.daily ) ? wd [ deliveryDate.day() ] : deliveryDate.week();
+                this.showCard( card, user._id, dayOrWeek, card.getColor(), task._id, text2draw, limit, card, DISPLAY_THEME_SHADOW );
+              }
+            } );
+          }
+          done++;
+          if ( done >= this.users.length ) {
+            cb();
+            this.finalization();
+          }
+        } )
+        .catch( ( ) => {
+          done++;
+          if ( done >= this.users.length ) {
+            cb();
+            this.finalization();
+          }
+        } );
+
+    } );
+  };
+
+  Board.prototype.showCard =  async function( task, usrID, dayOrWeek, taskBg, task_id, task_title, limit, card, displayThemeShadow ) {
+    var state = card.getState();
+    let txtColor = '#000000';
+    const stringTask = JSON.stringify( task ).replace( /'/g, '&apos;' );
+
+    const { customCssCard } = SETTINGS;
+
+    const ul = $( '<ul>' ).attr( {
+      'id': task_id,
+      'class': 'draggable shadow',
+      'task_id': task_id,
+      'taskObj': JSON.stringify( task ).replace( /'/g, '&apos;' ),
+    } );
+
+    ul.css( customCssCard );
+    /*
+     Click control => If taks is moving or has been moved, dont show popup
+    */
+    $( ul ).on( 'mousedown', e => {
+      const $this = e.currentTarget;
+      let moved = false;
+      $( $this ).on( 'mousemove', () => {
+        moved = true;
+        $( $this ).off( 'mousemove' );
+      } );
+
+      $( $this ).on( 'click', () => {
+        if ( !moved ) {
+          openPopupUpdateTask( task );
+        }
+      } );
+    } );
+
+    //$( '.draggable' ).mouseup( end );
+
+    if ( SETTINGS.styleCard == 1 || SETTINGS.styleCard == 3 ) {
+      var rgbObj = hexToRgb( this.themes[ card.themes[ 0 ] ].color );
+      var color = '5px solid rgba(' + rgbObj.r + ',' + rgbObj.g + ',' + rgbObj.b + ',.7)';
+
+      ul.css( { 'border': color } );
+
+      let img = getImgElementState( state, 'imgCard' );
+
+      ul.append( img );
+
+      if ( img == '' ) {
+        ul.css( { 'display': 'grid', 'align-items': 'center' } );
+      }
+
+    } else if ( SETTINGS.styleCard == 2 || SETTINGS.styleCard == 4 ) {
+      var rgbObj = hexToRgb( this.themes[ card.themes[ 0 ] ].color );
+      var color = `5px solid rgba(${rgbObj.r},${rgbObj.g},${rgbObj.b},.7)`;
+      var taskBgRgba = hexToRgb( taskBg );
+      taskBgRgba = `rgba(${taskBgRgba.r},${taskBgRgba.g},${taskBgRgba.b})`;
+
+      ul.css( {
+        'border': color,
+        'background-color': taskBgRgba,
+        'display': 'grid',
+        'align-items': 'center'
+      } );
+
+      if ( state == STATE.nok || state == STATE.nnok ) { txtColor = '#FFFFFF'; }
+    }
+
+    var a = $( '<a>' ).attr( { 'href': '#' } ).css( { 'color': txtColor } ).html( Board.splitTaskTitle( task_title, limit ) );
+    ul.append( [ a ] );
+
+    // If the task state is twice nok and the card is safetyRegulated
+    let divCritical = false;
+    if ( card.safetyRegulated ) {
+      divCritical = $( '<div>' );
+      var img = $( '<img/>' ).attr( { 'class': 'postit-icon-critical', 'src': PREFIXAPI + '/ressources/images/warn2.png' } );
+      divCritical.append( [ img, a ] );
+      ul.append( divCritical );
+    }
+
+    if ( this.visibility_mode == TaskManager.visibility_mode.daily ) {
+      $( `#${usrID} .${dayOrWeek} li` ).append( [ ul ] );
+    } else {
+      $( `#${usrID} [week=${dayOrWeek}] li` ).append( [ ul ] );
+    }
+    /*$( '.draggable' ).mousedown( start );
+    $( '.draggable' ).mouseup( end );*/
+
+    let id_usr_place = 0;
+    for ( id_usr_place in this.users ) {
+      if ( this.users[ id_usr_place ]._id == usrID )  break;
+    }
+
+    let num_date = 0;
+    switch ( dayOrWeek ) {
+    case 'monday' : num_date = 0; break;
+    case 'tuesday': num_date = 1; break;
+    case 'wednesday': num_date = 2; break;
+    case 'thursday': num_date = 3; break;
+    case 'friday': num_date = 4; break;
+    }
+
+    $( ul ).closest( '.' + dayOrWeek ).removeClass( 'hardWorkloadBg' );
+  };
+
+  function getImgElementState( state, classs ) {
+    let img = '';
+    let src = `${PREFIXAPI}/ressources/images/cards/card1/`;
+    let alt = '';
+
+    let imgStat = getImageFromCheckState( state );
+
+    src += imgStat.src ;
+    alt = imgStat.alt;
+
+    if ( classs == undefined ) classs = '';
+    img += `<img class="${classs}" src="${src}" alt="${alt}">`;
+    return img;
+  }
+
+  Board.prototype.getCard = function( cardid ) {
+    try {
+      for ( var i = 0; i < this.cards.length; i++ ) {
+        if ( this.cards[ i ]._id == cardid )
+          return this.cards[ i ];
+      }
+      return null;
+    } catch ( e ) {
+      return null;
+    }
+  };
+
+  Board.prototype.finalization = function() {
+    var self = this;
+
+    if ( $( window ).width() > 780 ) {
+      $( '.draggable' ).draggable( {
+        cursor: 'hand',
+        revert: true,
+        zIndex: 9999,
+        stack: '.draggable',
+        drag: function( ev, ui ) {
+          self.resizeFloatable();
+          dragTaskId = $( this ).attr( 'task_id' );
+          dragUserId = $( this ).closest( 'tr' ).attr( 'id' );
+          var offSet = $( this ).offset();
+          onHoverToTask = false;
+        }
+      } );
+    }
+
+    // Set drop functions
+    try {
+      drop( '.calendarDrop' );
+      dropForNextWeek( '#nextWeek', this );
+      dropForPreviousWeek( '#previousWeek', this );
+    } catch ( err ) {
+      console.log( err );
+    }
+
+    /*SCROLL OF THEAD*/
+    $( '#scrollThead thead' ).html( $( '#postitTab thead' ).html() );
+    $( '#scrollThead thead' ).html( $( '#postitTab-fixed thead' ).html() );
+
+
+    this.resizeFloatable();
+
+
+    if ( $( window ).width() <= 680 ) {
+      $( '.draggable' ).css( 'width', '90%' );
+      $( '.draggable' ).css( 'height', 'auto' );
+    } else {
+      this.resizePostIt();
+    }
+  };
+
+  Board.prototype.showThead = function() {
+    this.boardContainer.find( 'thead' ).html( thead );
+    $( '#postitTab-fixed' ).find( 'thead' ).html( thead );
+    Evnt.emit( Board.event.BoardTheadShowed );
+  };
+
+  Board.prototype.showTbody = function() {
+    this.boardContainer.find( 'tbody' ).html( tbody );
+    widthTheaderTaskManager();
+  };
+
+  Board.prototype.show = function() {
+    this.showThead();
+    this.showTbody();
+
+    Evnt.emit( Board.event.BoardShowed );
+  };
+
+  Board.prototype.resizeFloatable = function() {
+  };
+
+  Board.prototype.resizePostIt = function() {
+  };
+
+  Board.prototype.reloadBoard = async function( monday, cb ) {
+    $( '#boardContainerLeft' ).css( 'visibility', 'hidden' );
+    var cpt = 0;
+    var totalcpt = 1;
+    monday = moment( monday );
+    this.year = monday.year();
+    this.month = monday.month();
+    this.monday = monday;
+    this.buildThead();
+    this.showThead();
+    await this.buildTbody();
+    this.showTbody();
+    if( this.users && this.users.length > 0) {
+      this.reloadCards(monday, function(){
+        if(typeof cb === 'function') cb();
+        cpt++;
+        if(cpt >= totalcpt) {
+          widthTheaderTaskManager();
+          $('#boardContainerLeft').css('visibility', 'visible');
+          Evnt.emit(Board.event.BoardCardReLoaded);
+        }
+      });
+      resizeUserImage('#boardContainerLeft');
+    } else {
+      if(typeof cb === 'function') cb();
+    }
+    widthTheaderTaskManager();
+  };
+
+  Board.prototype.reloadCards = function( monday, cb ) {
+    this.year = monday.year();
+    this.month = monday.month();
+    this.buildCards( function() {
+      if ( typeof cb === 'function' ) {
+        cb();
+      }
+    } );
+  };
+
+  Board.prototype.loadAdministrationCards = function() {
+    this.loadNonAuditedTasksLastWeek();
+    this.loadProposedCards();
+    this.loadNOKNonReadTasks();
+  };
+
+  Board.prototype.reloadProposedCards = function() {
+    this.loadProposedCards();
+  };
+
+  Board.prototype.reloadNOKNonReadTasks = function() {
+    this.loadNOKNonReadTasks();
+  };
+
+  Board.prototype.reloadNonAuditedTasksLastWeek = function() {
+    this.loadNonAuditedTasksLastWeek();
+  };
+
+  /* =========== SECTION DE CONSTRUCTIONS DE TABLEAUX DES CARTES ================*/
+  Board.prototype.loadNonAuditedTasksLastWeek = function() {
+    taskManager.getNonAuditedTasksLastWeek()
+      .then( createTableUnauditedTasks )
+      .catch( console.error );
+  };
+
+  Board.prototype.loadNOKNonReadTasks = function() {
+    taskManager.getNOKNonReadTasks()
+      .then( createTableNonReadTasks )
+      .catch( console.error );
+  };
+
+  Board.prototype.loadProposedCards = function() {
+    taskManager.loadProposedCards()
+      .then( cards => {
+        createTableProposedCards( cards );
+      } )
+      .catch( console.error );
+  };
+  /*  =========================================== */
+
+  // functions
+  function createFunctionCheck( td ) {
+    let obj = td;
+    var $check = $( obj ).parent().find( 'input.checkCartes' );
+
+    if ( $( $check ).is( ':checked' ) ) {
+      $( obj ).parent().find( 'td:not(:last-child)' ).css( { 'background-color': '' } );
+      $check.prop( 'checked', false );
+    } else {
+      $( obj ).parent().find( 'td:not(:last-child)' ).css( { 'background-color': 'rgb(0,171,196)' } );
+      $check.prop( 'checked', true );
+    }
+
+    // update enable action buttons if there is at least one selected row
+    let selectTable = $( td ).closest( 'table' );
+    var table = $( selectTable ).DataTable();
+    let valSaveLenghtTable = $( selectTable ).closest( '.dataTables_wrapper' ).find( '.dataTables_length select' ).val();
+    if ( valSaveLenghtTable == undefined ) valSaveLenghtTable = 10;
+
+    var info = table.page.info();
+    $( selectTable ).DataTable().destroy();
+    selectTable = $( td ).closest( 'table' );
+    let $checks = $( selectTable ).find( 'tbody input.checkCartes' );
+    let atLeastOneselected = false;
+    $checks.each( ( idx, c ) => {
+      atLeastOneselected =  $( c ).is( ':checked' ) ? true : atLeastOneselected;
+    } );
+
+    let actualSection = $( td ).closest( '.tab-pane' );
+    let selectionButtons = $( actualSection ).find( '.buttonsSectionCardsContainer button ' );
+
+    if ( atLeastOneselected ) {
+      selectionButtons.each( ( idx, b ) => {
+        $( b ).removeClass( 'btndisabled' );
+        $( b ).removeAttr( 'disabled' );
+      } );
+    } else {
+      selectionButtons.each( ( idx, b ) => {
+        if ( !$( b ).hasClass( '.btndisabled' ) ) {
+          $( b ).addClass( 'btndisabled' );
+          $( b ).attr( 'disabled', 'disabled' );
+        }
+      } );
+    }
+
+    let param = {};
+    param[ 'pageLength' ] = parseInt( valSaveLenghtTable );
+    createDataTable( $( selectTable ), param );
+    let paging = $( selectTable ).closest( '.dataTables_wrapper' ).find( 'span .paginate_button' );
+
+    // Setting de current page
+    if ( paging.length > 0 ) {
+      for ( let i = 0; i < info.page; i++ ) {
+        let next = $( selectTable ).closest( '.dataTables_wrapper' ).find( '.next' );
+        $( next ).trigger( 'click' );
+      }
+    }
+
+  }
+
+  function createSortFunction( table, cards, createTable ) {
+    $( table ).find( '.sort-button' ).on( 'click', function() {
+      var $this = $( this );
+      var $th = $this.closest( 'th' );
+      var label = $th.attr( 'label' );
+      var currentSort;
+      $th.parent().find( 'th span.active' ).removeClass( 'active' );
+
+      if ( $this.hasClass( 'up' ) )
+        currentSort = 'up';
+      else if ( $this.hasClass( 'down' ) )
+        currentSort = 'down';
+
+      $this.addClass( 'active' );
+
+      if ( currentSort ) {
+        cards = cards.sort( function( a, b ) {
+          switch ( label ) {
+          case 'redactor': {
+            return funcRedactor();
+          }
+          case 'auditor': {
+            return funcAuditor();
+          }
+          case 'statusHistory': {
+            return funcStatusHistory();
+          }
+          case 'statusCard': {
+            return funcStatusCard();
+          }
+          case 'iconsButtons': {
+            //alert( 'icons' );
+            break;
+          }
+          default: {
+            return funcDefault();
+          }
+
+          }
+
+          function funcDefault() {
+            var _a = a[ label ] || '';
+            var _b = b[ label ] || '';
+            return a_b_sort( _a, _b );
+          }
+
+          function funcAuditor() {
+            var userA = taskManager.getUserById( a.users[ 0 ] );
+            var userB = taskManager.getUserById( b.users[ 0 ] );
+            var _a = userA.lastname + userA.firstname  || '';
+            var _b = userB.lastname + userB.firstname || '';
+            return a_b_sort( _a, _b );
+          }
+
+          function funcRedactor() {
+            //var user = taskManager.getUserById(card.redactor);
+            var userA = taskManager.getUserById( a.redactor );
+            var userB = taskManager.getUserById( b.redactor );
+            var _a = userA.lastname + userA.firstname  || '';
+            var _b = userB.lastname + userB.firstname || '';
+            return a_b_sort( _a, _b );
+          }
+
+          function funcStatusHistory() {
+            let cardA = new Card( a );
+            let cardB = new Card( b );
+
+            var _a = cardA.getState()  || '';
+            var _b = cardB.getState() || '';
+            return a_b_sort( _a, _b );
+          }
+
+          function funcStatusCard() {
+            let cardA = new Card( a );
+            let cardB = new Card( b );
+
+            var _a = cardA.status  || '';
+            var _b = cardB.status || '';
+            return a_b_sort( _a, _b );
+          }
+
+          function a_b_sort( _a, _b ) {
+            if ( typeof _a === 'string' ) _a = _a.toLowerCase();
+            if ( typeof _b === 'string' ) _b = _b.toLowerCase();
+            if ( _a > _b ) {
+              return currentSort === 'up' ? 1 : -1;
+            }
+            else if ( _a < _b ) {
+              return currentSort === 'up' ? -1 : 1;
+            }
+            else {
+              return 0;
+            }
+          }
+        } );
+        createTable( cards );
+        //createTableNonReadTasks(cards);
+      }
+    } );
+  }
+
+  function createTableUnauditedTasks( cards ) {
+    $( '#unauditedTableContainer' ).html( '' );
+    let img = getImageFromCheckState( STATE.unaudited );
+    let thead = $( `<thead>
+								<tr>
+									<th class="titleSectionTable" label="iconsButtons">
+										<div class="iconsContainer">
+											<div class="imageStatutResultContainerLittle iconNokButton">
+												<div class="imageStatutContainer">
+													<img width="60px" height="60px" src="/ressources/images/cards/card1/${img.src}" alt="${img.alt}">
+												</div>
+											</div>
+										</div>
+									</th>
+									<th colspan="2" class="titleSectionTable">
+										<h4>${UNAUDITED_CARDS_S_1}</h4></th>
+									<th class="titleSectionTable"></th>
+								</tr>
+								<tr>
+									<th>
+										<div>
+											<input  class="form-check-input checkCartes" style="margin-left: 4px;" type="checkbox" value="" id="checkAllNonAuditedCards" name="check"/> 
+											<label for="checkAllNonAuditedCards"></label>
+										</div>
+									</th>
+									<th label="title" style="border-left : none">
+										<span class="titleTr">
+											${CARDSS}
+										</span>
+										${sort_button}
+									</th>
+									<th label="auditor">
+										<span class="titleTr">
+											${AUDITOR}
+										</span>
+										${sort_button}
+									</th>
+									<th class="rowTrash no-sort editColumn"></th>
+								</tr>
+							</thead>` );
+
+    let tbody = $( '<tbody/>' );
+    let table = $( '<table id="tableUnaudited" class="table table-striped"/>' );
+    $( table ).append( [ thead, tbody ] );
+    let count = 0;
+    $( tbody ).html( '' );
+
+    for ( let i in cards ) {
+      var card = cards[ i ];
+      var user = taskManager.getUserById( card.users[ 0 ] );
+      var tr = $( '<tr/>', { id: `nonAudited_${card._id}`, 'class': 'trClickable' } );
+
+      /* == TD TABLE == */
+      var tdCheck = $( '<td>' ).attr( { 'class': 'col-1' } );
+      var tdIcon = $( '<td>' ).attr( { 'class': 'col-1' } );
+      var tdc = $( '<td style="border-left : none">' ).attr( { 'class': 'col-4' } );
+      var tdu = $( '<td>' ).text( user ? user.lastname + ' ' + user.firstname : '' ).attr( { 'class': 'col-4' } );
+
+      var tdupd_span_img = $( '<i class="fas fa-pencil-alt"></i>' );
+      var tdupd_span = $( '<span>' ).attr( {
+        title: UPDATE_CARD,
+        'onClick': 'updateNonAuditedCard(' + JSON.stringify( card ).replace( /'/g, '&apos;' ) + ')'
+      } ).addClass( 'imgButton' ).append( tdupd_span_img );
+      var tdEdit = $( '<td class="rowTrash">' ).append( tdupd_span ).attr( { 'class': 'col-1' } );
+      /* ============== */
+
+      /* == CHECKBOX == */
+      var checkBoxDiv = $( '<div/>' );
+      tdCheck.append( checkBoxDiv );
+
+      var checkSpanContent = $( `<input  class="form-check-input checkCartes" type="checkbox" value='${JSON.stringify( card ).replace( /'/g, '&apos;' )}' id="nonAudited_chbx_${card._id}" name="check" disabled/> 
+											<label for="nonAudited_chbx_${card._id}"></label>` );
+
+      checkBoxDiv.append( checkSpanContent );
+      /*  ============ */
+
+      /* == ICON == */
+      //let img = getImgElementState(state, 'imgIconStatut');
+      $( tdIcon ).append( `<div class="imageStatutResultContainerLittle">
+											<div class="imageStatutContainer">
+											</div>
+										</div>` );
+      /* ========== */
+
+
+      /* == CARD == */
+      var span = $( '<span>' ).attr( {
+        'class': 'cardsLink'
+      } ).text( card.title );
+      tdc.append( span );
+      /*  ============ */
+
+      /* AJOUTER CONTENU A LA TABLE */
+      tr.append( [ tdCheck, tdc, tdu, tdEdit ] );
+      $( tbody ).append( tr );
+      /*  ============ */
+      count++;
+
+      $( tr ).find( 'td:not(:last-child)' ).on( 'click', function() {
+        createFunctionCheck( this );
+      } );
+
+    }
+    $( '#cards_un_count' ).html( '' );
+    if ( count > 0 ) {
+      $( '#cards_un_count' ).html( `${count}` );
+    }
+
+    try {
+      $( '#unauditedTableContainer' ).append( table );
+      createDataTable( table );
+      createSortFunction( table, cards, createTableUnauditedTasks );
+      $( '#tagsCardsSection' ).find( 'a.active' ).click();
+
+      Evnt.emit( Board.event.NonAudited_Loaded );
+      Evnt.emit( 'DataTableRefresh' );
+
+    } catch ( err ) {
+      //console.error(err);
+    }
+  }
+
+  function createTableNonReadTasks( cards ) {
+    $( '#nokNonReadedContainer' ).html( '' );
+    let img = getImageFromCheckState( STATE.nok );
+    let imgNok = getImageFromCheckState( STATE.nnok );
+    let thead = $( `<thead>
+								<tr>
+									<th class="titleSectionTable" label="iconsButtons">
+										<div class="iconsContainer">
+											<div class="imageStatutResultContainerLittle iconNokButton">
+												<div class="imageStatutContainer"><img width="60px" height="60px" src="/ressources/images/cards/card1/${img.src}" alt="${img.alt}"></div>
+											</div>
+											<div class="imageStatutResultContainerLittle iconNokButton">
+												<div class="imageStatutContainer"><img width="60px" height="60px" src="/ressources/images/cards/card1/${imgNok.src}" alt="${img.alt}"></div>
+											</div>
+										</div>
+									</th>
+									<th class="titleSectionTable">
+									</th>
+									<th colspan="2" class="titleSectionTable">
+										<h4>${UNREAD_NOK_CARDS}</h4></th>
+									<th class="titleSectionTable"></th>
+								</tr>
+								<tr>
+									<th>
+										<div>
+											<input  class="form-check-input checkCartes" style="margin-left: 4px;" type="checkbox" value="" id="checkAllNokCards" name="check"/> 
+											<label for="checkAllNokCards"></label>
+										</div>
+									</th>
+									<th label="statusHistory">
+										<span class="titleTr">
+											${STATUS_SING}
+											</span>
+											${sort_button}
+									</th>
+									<th label="title">
+										<span class="titleTr">
+											${CARDSS}
+										</span>
+										${sort_button}
+									</th>
+									<th label="auditor">
+										<span class="titleTr">
+											${AUDITOR}
+										</span>
+										${sort_button}
+									</th>
+									<th class="rowTrash no-sort editColumn"></th>
+								</tr>
+							</thead>` );
+
+    let tbody = $( '<tbody/>' );
+    let table = $( '<table id="tableUnread" class="table table-striped"/>' );
+    $( table ).append( [ thead, tbody ] );
+    let count = 0;
+    $( tbody ).html( '' );
+
+    for ( var i = 0; i < cards.length; i++ ) {
+      var card = cards[ i ];
+      let cardSpec = new Card( card );
+      let state = cardSpec.getState();
+      var user = taskManager.getUserById( card.users[ 0 ] );
+      var tr = $( '<tr>' ).attr( { 'id': 'noknonread_' + card._id, 'class': 'trClickable' } );
+
+      /* == TD TABLE == */
+      var tdCheck = $( '<td>' ).attr( { 'class': 'col-1' } );
+      var tdIcon = $( '<td>' ).attr( { 'class': 'col-1' } );
+      var tdc = $( '<td>' ).attr( { 'class': 'col-4' } );
+      var tdu = $( '<td>' ).text( user ? user.lastname + ' ' + user.firstname : '' ).attr( { 'class': 'col-4' } );
+
+      var tdupd_span_img = $( '<i class="fas fa-pencil-alt"></i>' );
+      const stringCard = JSON.stringify( card ).replace( /'/g, '&apos;' );
+      var tdupd_span = $( '<span>' ).attr( {
+        title: UPDATE_CARD,
+        'onClick': `openPopupUpdateTask(${stringCard})`
+      } ).addClass( 'imgButton' ).append( tdupd_span_img );
+      var tdEdit = $( '<td class="rowTrash">' ).append( tdupd_span ).attr( { 'class': 'col-1' } );
+      /* ============== */
+
+      /* == CHECKBOX == */
+      var checkBoxDiv = $( '<div/>' );
+      tdCheck.append( checkBoxDiv );
+
+      var checkSpanContent = $( `<input  class="form-check-input checkCartes" type="checkbox" value='${JSON.stringify( card ).replace( /'/g, '&apos;' )}' id="nOk_chbx_${card._id}" name="check" disabled/> 
+											<label for="nOk_chbx_${card._id}"></label>` );
+      checkBoxDiv.append( checkSpanContent );
+
+      /*  ============ */
+
+      /* == ICON == */
+      let img = getImgElementState( state, 'imgIconStatut' );
+      $( tdIcon ).append( `<div class="imageStatutResultContainerLittle">
+										<div class="imageStatutContainer">
+											${img}
+										</div>
+									  </div>` );
+      /* ========== */
+
+      /* == CARD == */
+      var span = $( '<span>' ).attr( {
+        'class': 'cardsLink'
+      } ).text( card.title );
+
+      tdc.append( span );
+      /*  ============ */
+
+      /* AJOUTER CONTENU A LA TABLE */
+      tr.append( [ tdCheck, tdIcon, tdc, tdu, tdEdit ] );
+      $( tbody ).append( tr );
+      /*  ============ */
+      count++;
+
+      $( tr ).find( 'td:not(:last-child)' ).on( 'click', function() {
+        createFunctionCheck( this );
+      } );
+    }
+    $( '#cards_unread_count' ).html( '' );
+    if ( count > 0 ) {
+      $( '#cards_unread_count' ).html( count );
+    }
+
+    try {
+      $( '#nokNonReadedContainer' ).append( table );
+      createDataTable( table );
+      createSortFunction( table, cards, createTableNonReadTasks );
+      $( '#tagsCardsSection' ).find( 'a.active' ).click();
+      Evnt.emit( Board.event.BoardCardNokLoaded );
+      Evnt.emit( 'DataTableRefresh' );
+    } catch ( err ) {
+      //console.error(err);
+    }
+  }
+
+  function createTableProposedCards( cards ) {
+    $( '#mustBeTreatedContainer' ).html( '' );
+    let thead = $( `<thead>
+									<tr>
+										<th colspan="2"></th>
+										<th colspan="2" class="titleSectionTable" style="border-left : none; border-rigth: none">
+											<h4>${TO_VERIFY}</h4>
+										</th>
+										<th style="border-left : none;"></th>
+									</tr>
+									<tr>
+										<th>
+											<div>
+												<input  class="form-check-input checkCartes" style="margin-left: 4px;" type="checkbox" value="" id="checkAllProposedCards" name="check"/> 
+												<label for="checkAllProposedCards"></label>
+											</div>
+										</th>
+										<th label="statusCard">
+											<span>
+												${STATUS_SING}
+											</span>	
+											${sort_button}
+										</th>
+										<th class="col-5" label="title">
+											<span class="titleTr">
+												${CARDSS}
+											</span>
+											${sort_button}
+										</th>
+										<th class="col-5" label="redactor">
+											<span class="titleTr">
+												${REDACTOR}
+											</span>
+											${sort_button}
+										</th>
+										<th class="rowTrash no-sort editColumn"></th>
+									</tr>
+								</thead>` );
+
+    let tbody = $( '<tbody/>' );
+    let table = $( '<table id="tableToBeTreated" class="table table-striped"/>' );
+    $( table ).append( [ thead, tbody ] );
+    let count = 0;
+    $( tbody ).html( '' );
+
+    for ( var i = 0; i < cards.length; i++ ) {
+      var card = cards[ i ];
+      var cardObj = new Card( card );
+      var user = taskManager.getUserById( card.redactor );
+      var tr = $( '<tr/>', { id: 'proposed_' + card._id, 'class': 'trClickable' } );
+
+      /* == TD TABLE == */
+      var tdCheck = $( '<td>' ).attr( { 'class': 'col-1' } );
+
+      var tdStat = $( '<td>' ).attr( { 'class': 'col-1' } );
+
+      if ( cardObj.status == 'proposed' ) $( tdStat ).text( NEW_F );
+      else $( tdStat ).text( MODIFY_F );
+
+      var tdc = $( '<td>' ).attr( { 'class': 'col-4' } );
+      var tdu = $( '<td>' ).text( user ? user.lastname + ' ' + user.firstname : '' ).attr( { 'class': 'col-4' } );
+      var tdupd_span_img = $( '<i class="fas fa-pencil-alt"></i>' );
+      var tdupd_span = $( '<span>' ).attr( {
+        title: UPDATE_CARD,
+        'onClick': 'updateProposedCard("' + card._id + '")'
+      } ).addClass( 'imgButton' ).append( tdupd_span_img );
+      var tdEdit = $( '<td class="rowTrash">' ).append( tdupd_span ).attr( { 'class': 'col-1' } );
+      /* ============== */
+
+      /* == CHECKBOX == */
+      var checkBoxDiv = $( '<div/>' );
+      tdCheck.append( checkBoxDiv );
+      var checkSpanContent = $( `<input  class="form-check-input checkCartes" type="checkbox" value='${JSON.stringify( card ).replace( /'/g, '&apos;' )}' id="proposed_chbx_${card._id}" name="check" disabled/> 
+											<label for="proposed_chbx_${card._id}"></label>` );
+      checkBoxDiv.append( checkSpanContent );
+
+      /* ============== */
+
+      /* == CARD == */
+      var span = $( '<span>' ).attr( {
+        'class': 'cardsLink'
+      } ).text( card.title );
+
+      tdc.append( span );
+      /*  ============ */
+
+      /* AJOUTER CONTENU A LA TABLE */
+      tr.append( [ tdCheck, tdStat, tdc, tdu, tdEdit ] );
+      $( tbody ).append( tr );
+      /*  ============ */
+      count++;
+
+      $( tr ).find( 'td:not(:last-child)' ).on( 'click', function() {
+        createFunctionCheck( this );
+      } );
+    }
+
+    $( '#cards_toBeTreated_count' ).html( '' );
+    if ( count > 0 ) {
+      $( '#cards_toBeTreated_count' ).html( count );
+    }
+
+    try {
+      $( '#mustBeTreatedContainer' ).append( table );
+      createDataTable( table );
+      createSortFunction( table, cards, createTableProposedCards );
+      $( '#tagsCardsSection' ).find( 'a.active' ).click();
+      Evnt.emit( Board.event.BoardCardProposedLoaded );
+      Evnt.emit( 'DataTableRefresh' );
+    } catch ( err ) {
+      //console.error(err);
+    }
+  }
+
+
+  // static methods
+
+  Board.event = {
+    BoardBuilded: 'Board.BoardBuilded',
+    BoardReBuilded: 'Board.BoardReBuilded',
+    BoardShowed: 'Board.BoardShowed',
+    BoardTheadShowed: 'Board.BoardTheadShowed',
+    BoardCardLoaded: 'BoardCardLoaded',
+    BoardCardReLoaded: 'BoardCardReLoaded',
+    BoardTheadBuilded: 'Board.BoardTheadBuilded',
+    BoardCardNokLoaded: 'BoardCardNokLoaded',
+    BoardCardProposedLoaded: 'BoardCardProposedLoaded',
+    NonAudited_Loaded: 'NonAudited_Loaded'
+  };
+
+  Board.splitTaskTitle = function( str, limit ) {
+    if ( str.length > limit ) {
+      return str.slice( 0, limit ) + '...';
+    }
+
+    return str;
+  };
+
+  return Board;
+
+  function dropForNextWeek( selector, ctx ) {
+    $( selector ).droppable( {
+      tolerance: 'pointer',
+      drop: function( event, ui ) {
+        Card.getTaskbyId( dragTaskId )
+          .then( task => {
+            if ( !admn && !adminSpec ) {
+              return;
+            }
+
+            let t = task;
+            t.taskID = t._id;
+            t.theme_id = t.cftheme_id;
+            t.unaudited = null;
+
+            let weeksIncrement = 1;
+            let dayEnable = calculate_monday( weeksIncrement );
+            let limitDay = dayEnable.clone().add( weeksIncrement, 'isoWeek' );
+
+            let moveValid = setDateNoClosed( taskManager, dayEnable, limitDay );
+
+            if ( !moveValid ) return;
+
+            t.delivery_date = dayEnable.format( 'YYYY-MM-DD' );
+
+            let monday = calculate_monday( 0 );
+            $( '#boardContainerLeft' ).css( { 'visibility': 'hidden' } );
+
+            t.updateTask()
+              .then( () => {
+
+                window.addEventListener( 'BoardCardReLoaded', () => {
+                  board.reloadNonAuditedTasksLastWeek();
+                  $( '#nextWeek' ).trigger( 'click' );
+                  $( '#boardContainerLeft' ).css( { 'visibility': 'visible' } );
+                }, { once: true } );
+
+                ctx.reloadBoard( monday );
+              } )
+              .catch( console.error );
+
+          } );
+      }
+    } );
+  }
+
+  function dropForPreviousWeek( selector, ctx ) {
+    $( selector ).droppable( {
+      tolerance: 'pointer',
+      drop: function( event, ui ) {
+        Card.getTaskbyId( dragTaskId )
+          .then( task => {
+            if ( !admn && !adminSpec ) {
+              return;
+            }
+
+            let t = task;
+            t.taskID = t._id;
+            t.theme_id = t.cftheme_id;
+
+            let weeksToSubtract = -1;
+            let dayEnable = calculate_monday( weeksToSubtract );
+            let limitDay = calculate_monday( 0 );
+            let moveValid = setDateNoClosed( taskManager, dayEnable, limitDay );
+            if ( !moveValid ) return;
+
+            t.delivery_date = dayEnable.format( 'YYYY-MM-DD' );
+
+            let monday = calculate_monday( 0 );
+            $( '#boardContainerLeft' ).css( { 'visibility': 'hidden' } );
+
+            t.updateTask()
+              .then( () => {
+                window.addEventListener( 'BoardCardReLoaded', () => {
+                  board.reloadNonAuditedTasksLastWeek();
+                  $( '#previousWeek' ).trigger( 'click' );
+                  $( '#boardContainerLeft' ).css( { 'visibility': 'visible' } );
+                }, { once: true } );
+
+                ctx.reloadBoard( monday );
+              } )
+              .catch( console.error );
+
+          } )
+          .catch( console.error );
+      }
+    } );
+  }
+
+  function drop( selector ) {
+    $( selector ).droppable( {
+      tolerance: 'pointer',
+      drop: function( event, ui ) {
+        let $containerDrop = this;
+        Card.getTaskbyId( dragTaskId )
+          .then( task => {
+            let dropDate = moment( $( $containerDrop ).attr( 'date' ), 'DD/MM/YYYY' ).format( 'YYYY-MM-DD' );
+
+            // If the visibility is weekly we take the same date the task already has
+            if ( taskManager.visibility_mode == TaskManager.visibility_mode.weekly ) {
+              dropDate = task.delivery_date;
+            }
+
+            const dragUser = dragUserId;
+            const dropUserId = $( $containerDrop ).attr( 'userid' );
+
+            let t = task;
+            t.taskID = t._id;
+            t.theme_id = t.cftheme_id;
+
+            let detectedChange = false;
+
+            if ( dragUser != dropUserId ) {
+              for ( let i in t.users ) {
+                if ( dragUser == t.users[ i ] ) {
+                  t.users[ i ] = dropUserId;
+                  detectedChange = true;
+                }
+              }
+            }
+
+            if ( t.delivery_date != dropDate ) {
+              t.delivery_date = dropDate;
+              detectedChange = true;
+            }
+
+            if ( !detectedChange ) return;
+            if ( !admn && !adminSpec ) return;
+            if ( isAClosedDay( taskManager, moment( dropDate, 'YYYY-MM-DD' ).format( 'DD/MM/YYYY' ) ) ) return;
+
+            t.updateTask()
+              .then( () => {
+                board.reloadCards( board.monday );
+                board.reloadNOKNonReadTasks();
+                board.reloadNonAuditedTasksLastWeek();
+                updateFirstLevelBarCharts();
+              } )
+              .catch( console.error );
+          } )
+          .catch( console.error );
+      }
+    } );
+  }
+
+  /**
+   *
+   * Calculate first monday on calendar
+   * @param {int} inc : Increment of weeks
+   * @returns moment date in monday
+   */
+  function calculate_monday( inc ) {
+    var value = $( '#monday' ).attr( 'date' );
+    return moment( value, 'YYYY-MM-DD' ).add( inc, 'isoWeek' ).startOf( 'day' );
+  }
+
+  /**
+   * Find a day open among a range of dates
+   * The day object is modified in the fonction, there is no need to return it
+   * @param {Object} taskManager : The taskmanager containing the closed days
+   * @param {moment} day : Srtat day
+   * @param {moment} limitDay : The limit day to check
+   * @returns boolean, true if an open day has been found
+   */
+  function setDateNoClosed( taskManager, day, limitDay ) {
+    let openDayFound = false;
+    let friday = 5;
+    do {
+      if ( isAClosedDay( taskManager, day.format( 'DD/MM/YYYY' ) ) ) {
+        day.add( 1, 'day' );
+        if ( day.day() > friday ) {
+          break; // Exit loop if it's weekend
+        }
+      } else {
+        openDayFound = true;
+      }
+    } while ( !openDayFound && day.isBefore( limitDay ) );
+    return openDayFound;
+  }
+}();
