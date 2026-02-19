@@ -1,11 +1,11 @@
-[0219/093652.498:INFO:CONSOLE:150] "You are using the ngTouch module. 
+[0219/093746.104:INFO:CONSOLE:150] "You are using the ngTouch module. 
 AngularJS Material already has mobile click, tap, and swipe support... 
 ngTouch is not supported with AngularJS Material!", source: http://10.192.43.139:1880/ui/js/app.min.js (150)
-[0219/093652.582:INFO:CONSOLE:539] "Rendered http://10.192.43.139:1880/ui/css/app.min.less successfully.", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
-[0219/093652.584:INFO:CONSOLE:539] "CSS for http://10.192.43.139:1880/ui/css/app.min.less generated in 156ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
-[0219/093652.584:INFO:CONSOLE:539] "Less has finished. CSS generated in 156ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
-[0219/093652.975:INFO:CONSOLE:150] "SideNav 'left' is not available! Did you use md-component-id='left'?", source: http://10.192.43.139:1880/ui/js/app.min.js (150)
-[0219/093652.976:INFO:CONSOLE:150] "SideNav 'left' is not available! Did you use md-component-id='left'?", source: http://10.192.43.139:1880/ui/js/app.min.js (150)
-[0219/093652.995:INFO:CONSOLE:539] "Rendered http://10.192.43.139:1880/ui/css/app.min.less successfully.", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
-[0219/093652.996:INFO:CONSOLE:539] "CSS for http://10.192.43.139:1880/ui/css/app.min.less generated in 21ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
-[0219/093652.996:INFO:CONSOLE:539] "Less has finished. CSS generated in 21ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/093746.240:INFO:CONSOLE:539] "Rendered http://10.192.43.139:1880/ui/css/app.min.less successfully.", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/093746.245:INFO:CONSOLE:539] "CSS for http://10.192.43.139:1880/ui/css/app.min.less generated in 175ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/093746.245:INFO:CONSOLE:539] "Less has finished. CSS generated in 175ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/093746.674:INFO:CONSOLE:150] "SideNav 'left' is not available! Did you use md-component-id='left'?", source: http://10.192.43.139:1880/ui/js/app.min.js (150)
+[0219/093746.674:INFO:CONSOLE:150] "SideNav 'left' is not available! Did you use md-component-id='left'?", source: http://10.192.43.139:1880/ui/js/app.min.js (150)
+[0219/093746.695:INFO:CONSOLE:539] "Rendered http://10.192.43.139:1880/ui/css/app.min.less successfully.", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/093746.696:INFO:CONSOLE:539] "CSS for http://10.192.43.139:1880/ui/css/app.min.less generated in 22ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/093746.696:INFO:CONSOLE:539] "Less has finished. CSS generated in 22ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
