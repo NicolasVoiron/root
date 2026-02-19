@@ -1,0 +1,554 @@
+<html>
+<head>
+	<script type="text/javascript">var PREFIXAPI = "";</script>
+	<script type="text/javascript">var LANGUAGE = "fr";</script>
+	<title>Kamishibai - Authentification</title>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" href="/ressources/images/Kamishibai_Fond_Transparent.png" />
+	<script src="/ressources/jquery/jquery.js"></script>
+	<script src="/ressources/js/detectUA.min.js"></script>
+	<script src="/ressources/js/global.js"></script>
+	<link rel="stylesheet" href="/ressources/bootstrap/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="/ressources/css/assignation.css">
+	<link rel="stylesheet" type="text/css" href="/ressources/css/authentication.css">
+	<link href="/ressources/images/icons/css/all.css" rel="stylesheet"> <!--load all styles -->
+</head>
+
+<body class="auth">
+	<div class="top-content body-authentication">
+		<div class="inner-bg">
+			  <div class="container text-center">
+				<div class="row text-center">
+					  <div id="block" class="col-xs-12 col-md-12 col-lg-12 col-xl-6 offset-xl-3">
+						<div class="card-login card-bottom card-login-container">
+							<div class="col-12">
+								<img class="img-logo" src="/ressources/images/Kamishibai_Fond_Transparent.png" alt="" width="40px" height="40px">
+								<h1 class="card-login title text-center">
+									<img class="img-logo" src="/ressources/images/Nom_Kamishibai_Transparent.png" alt="" width="240px" height="40px">
+								</h1>
+							</div>
+							<div class="col-12 text-center catchphrase">
+								<span>« Check yourself »</span>
+							</div>
+
+							<!-- == LOGIN == -->
+							<div class="col-12 text-center" id="login-container">
+								
+								<div class="row">
+								  <div class="col-8 offset-2">
+									<form role="form" method="post" name="login_form" id="form_auth">
+									  
+										<div class="row">
+											<div class="col-12 text-center">
+										  		<div class="form-group">
+													<input type="text" id="login" autocomplete="username"class="form-control"  placeholder="Email" required="" autofocus="">
+										  		</div>
+											</div>
+									  	</div>
+									  
+									  	<div class="row">
+											<div class="col-12 text-center">
+										  		<div class="form-group input-group" style="display: block;">
+													<div class="pwdContainer" style="display: flex;">
+														<input type="password" autocomplete="current-password" id="pwd" class="form-control" placeholder="Mot de passe" required="">
+														<div class="input-group-append">
+															<span class="input-group-text append-icon"><i class="far fa-eye"></i></span>
+														</div>	
+													</div>
+										  		</div>
+											</div>
+									  	</div>
+
+									  <p class="error errorDisplay">Identifiants incorrects</p>
+									  <div class="row">
+										<div class="col-8 text-center" id="connexion-button-container">
+										  <button  class="button btnBlue" type="submit" id="connexion"><i class="fas fa-sign-in-alt"></i>&nbsp;Connexion</button>
+											<!--<button class="button button-postit" type="submit" id="connexion" style="width: 100%;"><i class="fas fa-sign-in-alt"></i> {{{languageDictionary._CONNECTION}}}</button> -->
+										</div>
+									  </div>
+									</form>
+								  </div>
+								</div>
+								<div class="row mt-3">
+								  <div class="col-12 text-right">
+									<span id="link-to-forgot-password" class="link-to clickable" style="color: blue;">Mot de passe oublié ?</span>
+								  </div>
+								</div>
+							</div>
+
+							<br/>
+							<div class="col-12 text-center catchphrase color-red" id="licensephrase" style="display: none;">
+								<span>Sans renouvellement, votre licence va expirer le {0}.Veuillez contacter votre administrateur ou PRODEO à <a href='mailto:contact@prod-eo.com'>contact@prod-eo.com</a>.</span>
+							</div>
+							<!-- =========== -->
+
+							<!-- == MDP OUBLIE == -->
+							<div class="col-12 text-center" id="div-fp-enter-login" style="display: none;">
+                    			<div class="row">
+                      				<div class="col-12 text-center mb-3">
+                        				<span class="white big-text">Veuillez saisir votre email pour recevoir un code de réinitialisation de votre mot de passe</span>
+                      				</div>
+                      			<div class="col-8 offset-2">
+                        			<div class="row">
+                          				<div class="col-12 text-center">
+                            				<div class="form-group">
+                              					<input type="text" id="fp-login" class="form-control" placeholder="Email">
+                              					<span class="custom-tooltip signin" id="fp-login-tooltip"></span>
+                            				</div>
+                          				</div>
+                        			</div>
+                        			<div id="fpel-error-msg" class="error-with-bg text-left mb-3 hide big-text"></div>
+                        				<div class="row">
+                          					<div class="col-12 text-center">
+                            					<button class="button btnBlue" id="fp-send-code-btn"><i class='bx bx-mail-send'></i>&nbsp;Envoyer le code</button>
+                          					</div>
+                        				</div>
+                      				</div>
+                    			</div>
+                    			<div class="row mt-3">
+                      				<div class="col-12 text-right">
+                        				<span id="link-fpel-back-to-signin" class="link-to white clickable" style="color: blue;"><i class='bx bx-arrow-back'></i>&nbsp;Retour à l'écran de connexion</span>
+                      				</div>
+                    			</div>
+                  			</div>
+							<!-- ================ -->
+
+							<!-- == ENTER CODE ==  -->
+							<div class="col-12 text-center" id="div-fp-enter-code" style="display: none;">
+								<div class="row">
+								  <div class="col-12 text-center mb-3">
+									<span class="white big-text">Veuillez saisir le code à 8 caractères reçu par email</span>
+								  </div>
+								</div>
+								<div class="row">
+								  <div class="col-8 offset-2">
+									<div class="row">
+									  <div class="col-12 text-center">
+										<div class="form-group">
+										  <input type="text" id="fp-code" class="form-control" placeholder="Code" required="" autofocus="">
+										  <span class="custom-tooltip signin" id="fp-code-tooltip"></span>
+										</div>
+									  </div>
+									</div>
+									<div id="fpec-error-msg" class="error-with-bg text-left mb-3 hide big-text"></div>
+									<div class="row">
+									  <div class="col-12 text-center">
+										<button class="button btnBlue" id="fp-valid-code-btn"><i class='bx bx-check'></i>&nbsp;Valider</button>
+									  </div>
+									</div>
+								  </div>
+								</div>
+								<div class="row mt-3">
+								  <div class="col-12 text-right">
+									<span id="link-fpec-back-to-signin" class="link-to white clickable" style="color: blue;"><i class='bx bx-arrow-back'></i>&nbsp;Retour à l'écran de connexion</span>
+								  </div>
+								</div>
+							  </div>
+							<!-- ================ -->
+							<!-- ========== NEW PASSWORD ============== -->
+							<div class="col-12 text-center" id="div-fp-new-password" style="display: none;">
+							<div class="row">
+								<div class="col-12 text-center mb-3">
+									<span class="white big-text">Veuillez saisir votre nouveau mot de passe</span>
+								</div>
+								</div>
+								<div class="row">
+								<div class="col-8 offset-2">
+									<div class="row">
+									<div class="col-12 text-center">
+										<div class="input-group mb-3">
+											<input type="password" id="fp-password" autocomplete="new-password" class="form-control" placeholder="Mot de passe" required="" autofocus="">
+											<div class="input-group-append">
+												<span class="input-group-text append-icon"><i class="far fa-eye"></i></span>
+											</div>	
+										</div>
+									</div>
+									</div>
+									<div id="pwd-msg-rules" class="success-with-bg text-left mb-3 hide big-text"></div>
+									<div class="row">
+									<div class="col-12 text-center">
+										<div class="input-group mb-3">
+											<input type="password"  id="fp-confirm-pwd" autocomplete="new-password" class="form-control" placeholder="Confirmation" required="" autofocus="">
+											<div class="input-group-append">
+												<span class="input-group-text append-icon"><i class="far fa-eye"></i></span>
+											</div>	
+										</div>
+									</div>
+									</div>
+									<div id="fpwd-msg" class="success-with-bg text-left mb-3 hide big-text"></div>
+									<div class="row">
+										<div class="col-12 text-center">
+											<button class="button btnBlue" id="fp-valid-pwd-btn"><i class='bx bx-check'></i>&nbsp;Valider</button>
+										</div>
+									</div>
+								</div>
+								</div>
+								<div class="row mt-3">
+									<div class="col-12 text-right">
+										<span id="link-fpwd-back-to-signin" class="link-to white clickable" style="color: blue;"><i class='bx bx-arrow-back'></i>&nbsp;Retour à l'écran de connexion</span>
+									</div>
+								</div>
+							</div>
+							<!-- ====================================== -->
+						</div>
+						<div class="imageContainer" style="margin-top: 100px;">
+							<img id="img-login" src="../ressources/images/background/login.png" alt="background_login" width="500" height="350">
+						</div>
+					  </div>
+				</div>
+			  </div>
+		</div>
+	</div>
+
+	<footer>
+  <div class="footer-content">
+    <div class="footer-left" style="display: flex; align-items:center">
+      <span class="logo">
+        <img src="/ressources/images/Nom_Kamishibai_Transparent.png">
+      </span>
+    </div>
+    <div class="footer-center" id="themesContainer" style="display: flex;">
+      <!-- Ajout de themes en JS (Voir kamishibai.js)-->
+    </div>			 
+    <div class="footer-right" id="footerText">
+      <!--<span class="legend">Légende</span>-->
+    </div>
+  </div>
+</footer> 
+</body>
+
+	<script> 
+    var ACCEPT_CARD = "Accepter card";
+    var ACCEPTED_PROGRESS_CARDS = "{0} / {1} cartes ont été acceptées";
+    var ACCEPTED_PROGRESS_CARD = "1 carte a été acceptée";
+    var ACCEPT_CARD = "Accepter card";
+    var ACCEPTING_CARD_S = "Accepter la/les carte(s)";
+    var ACTIVE = "Actif";
+    var ACTIVES = "Actifs";
+    var ADD = "Ajouter";
+    var ADDED_THE = "Ajouté(e) le";
+    var ADD_CHECK_VERIFY = "Veuillez saisir un commentaire de vérification avant d'ajouter";
+    var ADD_REACTION_NOK_VERIFY = "Veuillez saisir une réaction si NOK avant d'ajouter";
+    var ADMINISTRATOR = "Administrateur";
+    var ADMINISTRATORS_OF_TABLE = "Administrateur(s) du tableau";
+    var ALL = "Tous";
+    var APRIL = "Avril";
+    var ARCHIVED = "Archivé";
+    var ARCHIVED_PL = "Archivés";
+    var ARE_YOU_SURE_YOU_WANT_TO_REMOVE_THESE_CARDS = "¿Êtes-vous certain de supprimer {0} carte(s) et tout ce qu’elle(s) contient/contiennent?";
+    var ARE_YOU_SURE_YOU_WANT_TO_DELETE_THIS_CARD_AND_ALL_IT_CONTAINS = "Êtes-vous certain de supprimer cette carte et tout ce qu’elle contient ?";
+    var ARE_YOU_SURE_YOU_WANT_TO_DELETE_THIS_FILE = "Êtes-vous certain de supprimer {0} fichier(s) ?";
+    var ARE_YOU_SURE_YOU_WANT_TO_DELETE_THIS_IMAGE = "Êtes-vous certain de supprimer {0} image(s) ?";
+    var ARE_YOU_SURE_YOU_WANT_TO_DELETE_THIS_TASKMANAGER_AND_ALL_IT_CONTAINS = "Êtes-vous certain de supprimer ce tableau et tout ce qu’il contient ?";
+    var ARE_YOU_SURE_YOU_WANT_TO_DELETE_THIS_THEME = "Êtes-vous certain de supprimer ce thème ?";
+    var ARE_YOU_SURE_YOU_WANT_TO_DELETE_THIS_USER = "Êtes-vous certain de supprimer cet utilisateur ?";
+    var ARE_YOU_SURE_YOU_WANT_TO_REMOVE_THIS_FILE = "Êtes-vous certain de retirer ce fichier ?";
+    var ARE_YOU_SURE_YOU_WANT_TO_REMOVE_THIS_PHOTO = "Êtes-vous certain de retirer cette photo ?";
+    var AUDITOR = "Auditeur";
+    var AUDIT_DATE = "Date d'audit";
+    var AUDITS_IMAGES = "Images des audits";
+    var AUGUST = "Août";    
+    var BACK = "Retour";
+    var BY_THEME = "Par thème";
+    var BY_USER = "Par utilisateur";
+    var CANCEL = "Annuler";
+    var CANCEL_THE_AUDIT = "Annuler";
+    var CANCELING_AUDITS = "Annuler l'/les audit(s)";
+    var CANCELED_PROGRESS_CARDS = "{0} / {1} audits ont été annulés";
+    var CANCELED_PROGRESS_CARD = "1 audit a été annulé";
+    var CARD = "Carte";
+    var CARD_TITLE = "Titre de la carte";
+    var CARDSS = "Cartes";
+    var CARDS_ARE_ALREADY_IN_THIS_WEEK_PLANNING = "cartes sont déjà planifiées cette semaine";
+    var CARDS_PER_DAY_PER_USER_NUM_VALID = "Veuillez selectionner un numéro entre 1 et 20";
+    var CARDS_TO_BE_PROCESSED = "Cartes à traiter";
+    var CARD_DRAW_SUCCESS = "Tirage de cartes réussi";
+    var CARD_IS_ALREADY_IN_THIS_WEEK_PLANNING = "carte est déjà planifiée cette semaine";
+    var CHARACTERES = "caractères";
+    var CHECKPOINTS = "Points à vérifier";
+    var CHOOSE_FILE = "Choisir un fichier";
+    var CLOSE = "Fermer";
+    var CLOSED_DAYS = "Jours de fermeture";
+    var CONCERNED_USERS = "Utilisateur(s) concerné(s)";
+    var CONTINUE_QUESTION = "Voulez-vous continuer ?";
+    var CONTINUE_EXPORT = "Souhaitez vous continuer l'exportation ?";
+    var CREATED_BY = "Créé par";
+    var CSV_INJECT_FEEDBACK_CARDS = "{0} sur {1} cartes ont été ajoutées.";
+    var CSV_INJECT_FEEDBACK_USERS = "{0} sur {1} utilisateurs ont été ajoutés.";
+    var DAILY_WEEKLY_CANT_BE_REINTEGRATED_PL = "Les cartes avec une fréquence {0} et {1} ne peuvent pas être réintegrées";
+    var DATE_WHICH_TASK_MUST_BE_ENDED = "Date à laquelle la tâche doit être terminée";
+    var DAY = "Jour";
+    var DAYS = "Jours";
+    var DECEMBER = "Décembre";
+    var DELETE = "Supprimer";
+    var DELETE_AUDIT_IMAGES_PERIOD_LABELS = JSON.parse( '{"day": "Jour(s)", "week": "Semaine(s)", "month": "Mois", "year": "Année(s)" } ');
+    var DELETE_PROGRESS_CARD = "1 carte a été supprimée.";
+    var DELETE_PROGRESS_CARDS = "{0} / {1} cartes ont été supprimées.";
+    var DELETE_SECTOR_SERVICE = "Êtes-vous certain de supprimer le Secteur / Service ?";
+    var DELETE_USER = "Supprimer cet utilisateur";
+    var DELETE_USER_DEFINITELY = "Supprimer utilisateur";
+    var DELETING_CARDS = "Supprimer la/les cartes";
+    var DESCRIPTION = "Description";
+    var DETAILS = "Détails";
+    var DISPLAY_CALENDAR = "Afficher le calendrier";
+    var DO_YOU_WANT_TO_REINTEGRATE_THE_CARD = "Souhaitez vous ajouter cette carte au planning de cette semaine ?";
+    var DO_YOU_WANT_TO_REINTEGRATE_THE_CARDS = "Souhaitez vous ajouter ces cartes au planning de cette semaine ?";
+    var EMAIL_ALREADY_EXISTS = "Cet email est déjà utilisé";
+    var EMPTYTABLE_DT = "Aucune donnée disponible dans ce tableau";
+    var END_OF_THE_MONTH = "Fin du mois";
+    var ERROR_CODES = {
+        IMPOSSIBLE_DELETE_SEC_SER_CARDS_USING_IT: "Impossible de supprimer le secteur / service, {0} carte(s) l'utilise(nt)",
+        NAME_ALREAY_EXISTS: "Nom déjà existant",
+        PLEASE_WRITE_NAME: "Veuillez formuler un nom",
+        UNABLE_TO_DELETE_THEME_BECAUSE_ITS_USED_BY: "Impossible de supprimer le thème car il est utilisé par : ",
+        UNABLE_TO_REMOVE_UNIQUE_ADMINISTRATOR : "Impossible de supprimer l'unique administrateur",
+        XSS_INJECT : "Les caractères suivants ne sont pas autorisés : < > ' &#34;",
+        EMAIL_ALREADY_EXISTS : "Cet email est déjà utilisé",
+    };
+
+    var ERROR_CSV_INJECT = "Les lignes suivantes n'ont pas pu être injectées :";
+    var ERROR_FILE_CONTENT = "Erreur dans le contenu du fichier importé";
+    var ERROR_FILE_CONTENT_LINE_CARDS = "Des cartes n'ont pas pu être importées. La structure de l'import ne correspond pas au standard requis. Vous pouvez télécharger l'exemple.";
+    var ERROR_FILE_CONTENT_LINE_USERS = "Des utilisateurs n'ont pas pu être importés. La structure de l'import ne correspond pas au standard requis. Vous pouvez télécharger l'exemple.";
+    var EXPIRATION_DATE = "Date d'expiration";
+    var EXPORT_CARDS = "Exporter cartes";
+    var FEBRUARY = "Février";
+    var FILES = "Fichiers";
+    var FILE_EXISTS = "Un fichier avec le même nom existe déjà dans la galerie";
+    var FILE_IN_USE = "Ce fichier est actuellement utilisé par {0} cartes.";
+    var FILE_IN_USE_SING = "Ce fichier est actuellement utilisé par {0} carte.";
+    var FILE_NOT_SUPPORTED = "Ce type de fichier n'est pas supporté";
+    var FINISH = "Terminer";
+    var FREQUENCY = "Fréquence";
+    var FREQUENCY_LABELS = JSON.parse('{"daily":"quotidien", "weekly":"hebdomadaire", "monthly":"mensuel", "quarterly":"trimestriel", "half_yearly":"semestriel", "yearly":"annuel"}');
+    var FREQUENCY_LABELS_OPTIONS = JSON.parse('{"daily":"quotidien", "weekly":"hebdomadaire", "monthly":"mensuel", "quarterly":"trimestriel", "half_yearly":"semestriel", "yearly":"annuel"}');
+    var FRIDAY = "Vendredi";
+    var GOAL = "Objectif";
+    var HIDE_CALENDAR = "Cacher le calendrier";
+    var IMAGE_IN_USE = "Cette image est actuellement utilisée par {0} cartes.";
+    var IMAGE_IN_USE_SING = "Cette image est actuellement utilisée par {0} carte.";
+    var IMPORT = "Importer";
+    var IN = "En";
+    var INFEMPTY_DT = "Affichage de 0 à 0 sur 0 entrées";
+    var INFOFILT_DT = "(filtrées depuis un total de _MAX_ entrées)";
+    var INFO_DT = "Affichage de _START_ à _END_ sur _TOTAL_ entrées";
+    var INVALID = "Invalide";
+    var INVALID_DATE = "Date invalide";
+    var INVALID_EMAIL = "Email invalide";
+    var INVALID_EMPTY_FIELDS = "Veuillez remplir tous les champs requis";
+    var INVALID_EMPTY_FIELDS_TITLE = "Champs vides invalides";
+    var INVALID_FILE_EXTENSION = "Extension de fichier invalide";
+    var INVALID_HOUR = "Veuillez formuler une heure valide";
+    var INVALID_IMAGE_EXTENSION = "Extension d'image invalide";
+    var INVALID_LENGHT = "Longueur du champ invalide";
+    var INVALID_LENGTH_CARD_NAME = "Veuillez formuler un titre de moins de";
+    var INVALID_LENGTH_CHECKS = "Veuillez formuler une vérification de moins de";
+    var INVALID_LENGTH_NAME = "Veuillez formuler un nom de moins de";
+    var INVALID_LENGTH_NOK_REACTION = "Veuillez formuler une réaction de moins de";
+    var INVALID_REQUIRED_FIELDS_CSV = "Veuillez fournir uniquement les informations requises.";
+    var IMPORTING_CARDS = "Importation des cartes en cours";
+    var IMPOSSIBLE_DELETE_SEC_SER_CARDS_USING_IT = "Impossible de supprimer le secteur / service, {0} carte(s) l'utilise(nt)";
+    var JANUARY = "Janvier";
+    var JULY = "Juillet";
+    var JUNE = "Juin";
+    var KPIS = "Indicateurs";
+    var KPI_CONFORMITY_AUDITED_CARDS = "Taux de conformité des cartes auditées";
+    var KPI_CONFORMITY_AUDITED_TOOLTIP = "Taux de conformité";
+    var KPI_PLANNING_ADHESION_TITLE = "Taux d'adhérence au planning des cartes auditées";
+    var KPI_PLANNING_ADHESION_TOOLTIP = "Taux d'adhérence";
+    var LENGTHMENU_DT = "Afficher _MENU_ entrées";
+    var LICENSE_WILL_EXPIRED = "Sans renouvellement, votre licence va expirer le {0}.Veuillez contacter votre administrateur ou PRODEO à <a href='mailto:contact@prod-eo.com'>contact@prod-eo.com</a>.";
+    var LINE = "Ligne";
+    var LOADING = "En cours";
+    var MARCH = "Mars";
+    var MARKSTATUS = "Marquer un statut";
+    var MAXIMUM_NUMBER_OF_CARDS_PER_WEEK_AND_PER_PERSON = "Nombre de cartes maximum tirées - par personne et par semaine";
+    var MAXIMUM_NUMBER_OF_CARDS_TOO_HIGH_TXT_PLU = "risquent de ne pas pouvoir être instanciées. Voulez-vous valider ?";
+    var MAXIMUM_NUMBER_OF_CARDS_TOO_HIGH_TXT_SING = "risque de ne pas pouvoir être instanciée. Voulez-vous valider ?";
+    var MAY = "Mai";
+    var MODIFIED_BY = "Modifiée par";
+    var MODIFY = "Modifier";
+    var MODIFY_F = "Modifiée";
+    var MONDAY = "Lundi";
+    var MONTHSLABELSARRAY = [
+    JANUARY,
+    FEBRUARY,
+    MARCH,
+    APRIL,
+    MAY,
+    JUNE,
+    JULY,
+    AUGUST,
+    SEPTEMBER,
+    OCTOBER,
+    NOVEMBER,
+    DECEMBER
+    ];
+    var MONTHSLABELS_SHORT = {
+    "JANUARY": "Janv.",
+    "FEBRUARY": "Févr.",
+    "MARCH": "Mars",
+    "APRIL": "Avr.",
+    "MAY": "Mai",
+    "JUNE": "Juin",
+    "JULY": "Juil.",
+    "AUGUST": "Août",
+    "SEPTEMBER": "Sept.",
+    "OCTOBER": "Oct.",
+    "NOVEMBER": "Nov.",
+    "DECEMBER": "Déc."
+    };
+    var MONTHS_LABELS = JSON.parse('{"0": "Janvier", "1": "Février", "2": "Mars", "3": "Avril", "4": "Mai", "5": "Juin", "6": "Juillet", "7": "Août", "8": "Septembre", "9": "Octobre", "10": "Novembre", "11": "Decembre"}');
+    var MODIFY_AUDIT = "Modifier le dernier résultat de l'audit"
+    var NA = "NA";
+    var NAME = "Nom";
+    var NAME_ALREAY_EXISTS = "Nom déjà existant";
+    var NEW_CHECK = "Nouvelle vérification";
+    var NEW_F = "Nouvelle";
+    var NEW_REACTION = "Nouvelle réaction si NOk";
+    var NEW_SECTOR_SERVICE = "Nouvel Secteur / Service";
+    var NEXT = "Suivant";
+    var NEXT_DT = "Suivant";
+    var NO = "Non";
+    var NO_VALIDATED_CARD = "Vous avez une carte en attente qui n'a pas été validée :";
+    var NO_VALIDATED_CARDS = "Vous avez {0} cartes en attente qui n'ont pas été validées :";
+    var NO_VALIDATED_CARD_NOTE = "Les cartes non validées ne seront pas exportées.";
+    var NOTE = "Note";
+    var NOT_REGISTERED_USERS = "Utilisateur(s) non enregistré(s)";
+    var NOVEMBER = "Novembre";
+    var NO_DATA = "Il n'y a pas de données";
+    var NUMBER_OF_REINTEGRATED_CARD = "Nombre de fois où la carte a été réintégrée";
+    var OCTOBER = "Octobre";
+    var OF_DELAY = "de retard";
+    var OK = "Ok";
+    var ORIGINALLY_PLANNED_FOR_THE = "Initialement prévu pour le";
+    var PARTICIPANT = "Participant";
+    var PICTURE = "Image";
+    var PICTURES = "Images";
+    var PICTURES_AUDITS = "Audits";
+    var PLACE = "Lieu";
+    var PLEASE_CONTACT_AN_ADMINISTRATOR = "Veuillez contacter un administrateur";
+    var PLEASE_ENTER_A_COMMENT = "Merci de renseigner un commentaire";
+    var PLEASE_ENTER_A_DATE_IN_THE_FUTUR = "Merci de renseigner une date dans le futur";
+    var PLEASE_SELECT_FILE = "Veuillez sélectionner un fichier";
+    var PLEASE_SET_ALL_REQUIRED_FIELDS = "Merci de renseigner tous les champs requis";
+    var PLEASE_UPLOAD_FILE_LIMIT_SIZE = "Veuillez sélectionner un fichier de {0} Mb maximum.";
+    var PLEASE_WRITE_NAME = "Veuillez formuler un nom";
+    var PREV = "Précédent";
+    var PREV_DT = "Précédent";
+    var PROPOSED = "Proposé";
+    var REACTION_IF_NOK = "Réaction si NOK";
+    var READ_PROGRESS_CARDS = "{0} / {1} cartes ont été lues";
+    var READ_PROGRESS_CARD = "1 carte a été lue";
+    var REDACTOR = "Rédacteur";
+    var READING_CARD_S = "Lire la/les carte(s)";
+    var REFUSE_THE_CARD = "Refuser";
+    var REFUSED_PROGRESS_CARDS = "{0} / {1} cartes ont été refusées";
+    var REFUSED_PROGRESS_CARD = "1 carte a été refusée";
+    var REFUSING_CARD_S = "Refuser la/les carte(s)";
+    var REGISTERED_USER = "Utilisateur(s) enregistré(s)";
+    var REGISTERED_USERS = "Utilisateur(s) enregistré(s)";
+    var REINTEGRATE_TO_PLANNING = "Réintégrer au planning";
+    var REINTEGRATING_CARD_S = "Réintégrer la/les carte(s)";
+    var REINTEGRATED_PROGRESS_CARDS = "{0} / {1} cartes ont été réintégrées.";
+    var REINTEGRATED_PROGRESS_CARD = "1 carte a été réintégrée.";
+    var IMPORTED_PROGRESS_CARDS = "{0} / {1} cartes ont été importées.";
+    var IMPORTED_PROGRESS_CARD = "1 carte a été importée.";
+    var IMPORTED_PROGRESS_PHOTOS = "{0} / {1} photos ont été importées.";
+    var IMPORTED_PROGRESS_PHOTO = "1 photo a été importée.";
+    var IMPORTED_PROGRESS_FILES = "{0} / {1} fichiers ont été importés.";
+    var IMPORTED_PROGRESS_FILE = "1 fichier a été importé.";
+    var RELAUNCH_CARD_DRAW = "Relancer un tirage de cartes";
+    var RELAUNCH_CONFIRM = "Êtes-vous certain de relancer un tirage de cartes dans ce tableau ?";
+    var REMOVE = "Retirer";
+    var REPLACE_BY = "Remplacer par :";
+    var REQUIRED_FIELD_MESSAGE = "Veuillez renseigner ce champs.";
+    var RESTRICTED = "Restreint";
+    var RETURN_TO_STEP = "Retourner à l'étape {0}";
+    var SATURDAY = "Samedi";
+    var SAVE = "Enregistrer";
+    var SEARCH = "Recherche";
+    var SEARCH_DT = "Rechercher :";
+    var SECTOR_SERVICE = "Secteur / Service";
+    var NONE = "Aucun";
+    var SELECT_TABLE_IMPORT_CARDS = "Dans quel tableau souhaitez-vous importer les cartes ?";
+    var SELECT_SERVICE_IMPORT_CARDS = "Veuillez remplacer chacun des Secteurs / Services sources par l'une des options suivantes :";
+    var SELECT_THEME_IMPORT_CARDS = "Veuillez remplacer chacun des thèmes sources par l'une des options suivantes :";
+    var SENDING_EMAIL_SMS = "Paramétrage d'envoi d'email";
+    var SEPTEMBER = "Septembre";
+    var SINCE = "Depuis";
+    var SORT = "Trier";
+    var SOURCE = "Source :";
+    var SR = "Sécurité / Réglementé";
+    var STATUS_SING = "Statut";
+    var STEP_1 = "Étape 1 : Choisissez un tableau";
+    var STEP_2 = "Étape 2 : Choisissez le Secteur / Service";
+    var STEP_3 = "Étape 3 : Choisissez le thème";
+    var STYLE = "Style";
+    var SUNDAY = "Dimanche";
+    var TABLE = "Tableau";
+    var TASK = "Tâche";
+    var TASKMANAGER = "Tableau";
+    var TASKS = "Tâches";
+    var THEME = "Thème";
+    var THEMES = "Thèmes";
+    var THE_ELEMENT_DOESNT_EXISTS = "Le {0} {1} n'existe pas";
+    var THE_EMAILS_CANNOT_BE_DUPLICATED = "Le même email ne peut pas être utilisé plusieurs fois";
+    var THURSDAY = "Jeudi";
+    var TITLE = "Titre";
+    var TODAY = "Aujourd'hui";
+    var TOTAL = "Total";
+    var TO_VERIFY = "Cartes à vérifier";
+    var TUESDAY = "Mardi";
+    var UNAUDITED_CARDS_S_1 = "Cartes non auditées S-1";
+    var UNREAD_NOK_CARDS = "Cartes NOK non lues";
+    var UPDATE_CARD = "Modifier la carte";
+    var UPDATE_FILENAME = "Modifier nom du fichier";
+    var UPDATE_SECTOR_SERVICE = "Modifier le Secteur / Service";
+    var UPLOAD_IMAGE = "Télécharger une image ou un fichier";
+    var USER = "Utilisateur";
+    var VALIDATE = "Valider";
+    var VALIDATED = "Validé";
+    var VALIDATOR_OF_CARD_REINTEGRATION = "Le tableau contient déjà le nombre maximum de cartes. Voulez-vous quand même réintégrer la carte ?";
+    var VALID_FILE_CHOICE = "Veuillez choisir un fichier {1} selon le standard requis.";
+    var VALID_IMAGES_CHOICE = "Veuillez choisir une image validée";
+    var VERSION = "Version";
+    var WARNING = "Attention";
+    var WEDNESDAY = "Mercredi";
+    var WEEKHEADER = "Sem.";
+    var WRITE_BY = "par";
+    var WRITE_IN_HOUR = "à";
+    var WRITE_THE = "Ecrit le";
+    var YES = "Oui";
+    var YOU_ARE_NOT_ASSIGNED_TO_A_TABLE = "Vous n'êtes pas assigné à un tableau";
+    var ZEROREC_DT = "Aucune entrée correspondante n'a été trouvée";
+    var CSV_CRITICAL_ERROR_READ_FILE = "Erreur critique : la lecture du fichier a échoué.";
+    var CSV_ERROR_ELEMENT_LINE = "Erreur ligne : {0}<br/>Détails de l'erreur : Le nombre d'éléments est incorrect.<br/>Données :<br/>{1}<br/>";
+    var CSV_ERROR_CARD_NAME_LENGTH = "Erreur ligne : {0}<br/>Détails de l'erreur : La taille maximale de {2} caractères pour le nom de la carte est atteinte.<br/>Données :<br/>{1}<br/>";
+    var CSV_ERROR_INVALID_DATE = "Erreur ligne : {0}<br/>Détails de l'erreur : La date est invalide.<br/>Données :<br/>{1}<br/>";
+    var CSV_ERROR_DATE_IN_PAST = "Erreur ligne : {0}<br/>Détails de l'erreur : La date d'expiration est dans le passé ; elle doit être dans le futur.<br/>Données :<br/>{1}<br/>";
+    var CSV_ERROR_FREQUENCY_NOT_EXIST = "Erreur ligne : {0}<br/>Détails de l'erreur : Le fréquence n'existe pas.<br/>Données :<br/>{1}<br/>";
+    var CSV_ERROR_THEME_NOT_EXIST = "Erreur ligne : {0}<br/>Détails de l'erreur : Le thème n'existe pas.<br/>Données :<br/>{1}<br/>";
+    var CSV_ERROR_SECTOR_NOT_EXIST = "Erreur ligne : {0}<br/>Détails de l'erreur : Le secteur n'existe pas.<br/>Données :<br/>{1}<br/>";
+    var CSV_ERROR_TASKMANAGER_NOT_EXIST = "Erreur ligne : {0}<br/>Détails de l'erreur : Le tableau n'existe pas.<br/>Données :<br/>{1}<br/>";
+    var CSV_ERROR_CHECK_LENGTH = "Erreur ligne : {0}<br/>Détails de l'erreur : La taille maximale de {2} caractères pour la vérification est atteinte.<br/>Données :<br/>{1}<br/>";
+    var CSV_ERROR_CHECK_QTY = "Erreur ligne : {0}<br/>Détails de l'erreur : Il doit y avoir au moins une vérification définie.<br/>Données :<br/>{1}<br/>";
+    var CSV_ERROR_REACTION_LENGTH = "Erreur ligne : {0}<br/>Détails de l'erreur : La taille maximale de {2} caractères pour la réaction est atteinte.<br/>Données :<br/>{1}<br/>";
+    var CSV_ERROR_REACTION_QTY = "Erreur ligne : {0}<br/>Détails de l'erreur : Il doit y avoir au moins une réaction définie.<br/>Données :<br/>{1}<br/>";
+</script>
+	<script>
+		var AUTH_PASSWORD_CHANGED = "Le mot de passe a été réinitialisé. Vous allez être redirigé vers la page de connexion dans 5s...";
+		var AUTH_PASSWORD_CONFIRM = "Les mots de passe ne correspondent pas.";
+		var AUTH_PASSWORD_RULES = "Le mot de passe doit répondre aux exigences suivantes :<br> - DOIT contenir au moins 8 caractères<br> - DOIT contenir au moins une lettre majuscule<br> - DOIT contenir au moins une lettre minuscule<br> - DOIT contenir au moins un chiffre<br> - DOIT contenir au moins un caractère spécial (-&amp;@~&quot;%&mu;&sect;&pound;$&curren;&euro;#*+=_^&uml;/&deg;|`&apos;?!,;.:)";
+		var CORRECT_PWD = "Mots de passe corrects";
+		var DIF_PWD = "Les mots de passe ne correspondent pas";
+		var STRONG_PWD = "Mot de passe fort";
+	</script>
+  <script src="/ressources/plugins/moment_with_locales.js"></script>
+  <script type="text/JavaScript" src="/ressources/js/constants.js"></script>
+	<script src="/ressources/js/validations.js"></script>
+	<script src="/ressources/js/authentication.js"></script>
+	<script type="text/javascript" src="/ressources/js/importClass.js"></script>
+
+</html>

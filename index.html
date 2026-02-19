@@ -1,71 +1,73 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>FactoryCast Public</title>
+    <title>FactoryCast Pro - View</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
-        #viewer { display: flex; width: 100vw; height: 100vh; justify-content: center; align-items: center; }
-        .pane { 
-            height: 100vh; 
-            flex: 1; 
-            /* PROPORTIONNEL SANS DÉFORMATION */
-            object-fit: contain; 
-            background: #000;
-        }
-        #pb { position: fixed; bottom: 0; left: 0; height: 4px; background: #3dcd58; width: 0%; z-index: 100; }
-        #info { position: fixed; bottom: 10px; right: 15px; color: rgba(255,255,255,0.3); font-size: 11px; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
+        #stage { display: flex; width: 100vw; height: 100vh; justify-content: center; align-items: center; }
+        .slide { position: absolute; width: 100%; height: 100%; opacity: 0; transition: opacity 1.5s ease-in-out; display: flex; }
+        .slide.active { opacity: 1; }
+        .segment { flex: 1; height: 100%; object-fit: contain; background: #000; }
+        #overlay { position: fixed; bottom: 0; left: 0; width: 100%; height: 5px; background: rgba(255,255,255,0.2); }
+        #progress { height: 100%; background: #3dcd58; width: 0%; transition: width 0.1s linear; }
+        #badge { position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: #3dcd58; padding: 5px 10px; font-size: 12px; border: 1px solid #3dcd58; }
     </style>
 </head>
 <body>
-    <div id="viewer"></div>
-    <div id="pb"></div>
-    <div id="info">Sync...</div>
+    <div id="badge">Sync: --:--</div>
+    <div id="stage"></div>
+    <div id="overlay"><div id="progress"></div></div>
 
     <script>
-        const params = new URLSearchParams(window.location.search);
-        const canal = params.get('canal') || 'point_1';
-        let sites = [], idx = 0;
+        const urlParams = new URLSearchParams(window.location.search);
+        const canal = urlParams.get('canal') || 'ATELIER_1';
+        let config = {};
+        let currentIndex = 0;
 
-        async function load() {
-            try {
-                const r = await fetch(`config.json?t=${Date.now()}`);
-                const d = await r.json();
-                sites = d.channels[canal].sites;
-                render();
-            } catch(e) { setTimeout(load, 5000); }
+        async function loadConfig() {
+            const resp = await fetch(`config.json?v=${Date.now()}`);
+            config = await resp.json();
+            render();
         }
 
         function render() {
-            if (!sites.length) return;
-            const s = sites[idx];
-            const v = document.getElementById('viewer');
-            const p = document.getElementById('pb');
+            const sites = config[canal].sites;
+            const site = sites[currentIndex];
+            const stage = document.getElementById('stage');
             
-            v.innerHTML = '';
-            for(let i=0; i<s.split; i++) {
+            // Création du slide
+            const slide = document.createElement('div');
+            slide.className = 'slide active';
+            
+            const segments = site.split || 1;
+            for(let i=0; i<segments; i++) {
                 const img = document.createElement('img');
-                img.className = 'pane';
-                // CACHE BUSTING : ?v=timestamp pour forcer le rafraîchissement
-                img.src = `docs/screens/${canal}_${idx}_p${i}.png?v=${Date.now()}`;
-                v.appendChild(img);
+                const suffix = segments > 1 ? `_p${i}` : '';
+                img.src = `displays/${canal}_${currentIndex}${suffix}.png?v=${Date.now()}`;
+                img.className = 'segment';
+                slide.appendChild(img);
             }
 
-            document.getElementById('info').innerText = `Point: ${canal} | MàJ: ${s.last_update_str || '--'}`;
-            
-            p.style.transition = 'none'; p.style.width = '0%';
-            setTimeout(() => {
-                p.style.transition = `width ${s.display_time}s linear`;
-                p.style.width = '100%';
-            }, 50);
+            stage.innerHTML = '';
+            stage.appendChild(slide);
+            document.getElementById('badge').innerText = `Point: ${canal} | Maj: ${site.last_update || 'N/A'}`;
 
-            setTimeout(() => {
-                idx = (idx + 1) % sites.length;
-                if(idx === 0) load(); else render();
-            }, s.display_time * 1000);
+            // Progress Bar & Rotation
+            let duration = site.duration * 1000 || 15000;
+            let start = Date.now();
+            let timer = setInterval(() => {
+                let perc = (Date.now() - start) / duration * 100;
+                document.getElementById('progress').style.width = perc + '%';
+                if(perc >= 100) {
+                    clearInterval(timer);
+                    currentIndex = (currentIndex + 1) % sites.length;
+                    if(currentIndex === 0) loadConfig(); else render();
+                }
+            }, 100);
         }
 
-        load();
+        loadConfig();
     </script>
 </body>
 </html>
