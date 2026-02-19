@@ -17,7 +17,9 @@
                 "wait_time": 5,
                 "freq": 30,
                 "duration": 20,
-                "split": 1
+                "split": 1,
+                "last_ts": 1771495429.750894,
+                "last_update_str": "11:03"
             }
         ]
     }

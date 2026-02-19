@@ -1,39 +1,11 @@
-[0219/110302.116:WARNING:content\browser\btm\btm_database.cc:128] Failed to initialize the DIPS SQLite database.
-[0219/110302.119:ERROR:net\disk_cache\cache_util_win.cc:25] Unable to move the cache: Accès refusé. (0x5)
-[0219/110302.119:ERROR:net\disk_cache\cache_util_win.cc:25] Unable to move the cache: Accès refusé. (0x5)
-[0219/110302.119:ERROR:net\disk_cache\cache_util_win.cc:25] Unable to move the cache: Accès refusé. (0x5)
-[0219/110302.121:ERROR:net\disk_cache\disk_cache.cc:272] Unable to create cache
-[0219/110302.121:ERROR:gpu\ipc\host\gpu_disk_cache.cc:725] Gpu Cache Creation failed: -2
-[0219/110302.121:ERROR:net\disk_cache\disk_cache.cc:272] Unable to create cache
-[0219/110302.121:ERROR:gpu\ipc\host\gpu_disk_cache.cc:725] Gpu Cache Creation failed: -2
-[0219/110302.121:ERROR:net\disk_cache\disk_cache.cc:272] Unable to create cache
-[0219/110302.121:ERROR:gpu\ipc\host\gpu_disk_cache.cc:725] Gpu Cache Creation failed: -2
-[0219/110304.134:WARNING:components\leveldb_proto\internal\leveldb_database.cc:124] Unable to open C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata: IO error: C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata/LOCK: Access denied. (ChromeMethodBFE: 15::LockFile::5)
-[0219/110306.170:WARNING:components\leveldb_proto\internal\leveldb_database.cc:124] Unable to open C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata: IO error: C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata/LOCK: Access denied. (ChromeMethodBFE: 15::LockFile::5)
-[0219/110308.202:WARNING:components\leveldb_proto\internal\leveldb_database.cc:124] Unable to open C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata: IO error: C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata/LOCK: Access denied. (ChromeMethodBFE: 15::LockFile::5)
-[0219/110310.237:WARNING:components\leveldb_proto\internal\leveldb_database.cc:124] Unable to open C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata: IO error: C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata/LOCK: Access denied. (ChromeMethodBFE: 15::LockFile::5)
-[0219/110317.389:WARNING:content\browser\btm\btm_database.cc:128] Failed to initialize the DIPS SQLite database.
-[0219/110317.404:ERROR:net\disk_cache\cache_util_win.cc:25] Unable to move the cache: Accès refusé. (0x5)
-[0219/110317.404:ERROR:net\disk_cache\cache_util_win.cc:25] Unable to move the cache: Accès refusé. (0x5)
-[0219/110317.404:ERROR:net\disk_cache\cache_util_win.cc:25] Unable to move the cache: Accès refusé. (0x5)
-[0219/110317.405:ERROR:net\disk_cache\disk_cache.cc:272] Unable to create cache
-[0219/110317.405:ERROR:gpu\ipc\host\gpu_disk_cache.cc:725] Gpu Cache Creation failed: -2
-[0219/110317.405:ERROR:net\disk_cache\disk_cache.cc:272] Unable to create cache
-[0219/110317.405:ERROR:gpu\ipc\host\gpu_disk_cache.cc:725] Gpu Cache Creation failed: -2
-[0219/110317.405:ERROR:net\disk_cache\disk_cache.cc:272] Unable to create cache
-[0219/110317.405:ERROR:gpu\ipc\host\gpu_disk_cache.cc:725] Gpu Cache Creation failed: -2
-[0219/110319.433:WARNING:components\leveldb_proto\internal\leveldb_database.cc:124] Unable to open C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata: IO error: C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata/LOCK: Access denied. (ChromeMethodBFE: 15::LockFile::5)
-[0219/110344.660:WARNING:components\leveldb_proto\internal\leveldb_database.cc:124] Unable to open C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata: IO error: C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata/LOCK: Access denied. (ChromeMethodBFE: 15::LockFile::5)
-[0219/110345.505:WARNING:components\leveldb_proto\internal\leveldb_database.cc:124] Unable to open C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata: IO error: C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata/LOCK: Access denied. (ChromeMethodBFE: 15::LockFile::5)
-[0219/110351.451:WARNING:components\leveldb_proto\internal\leveldb_database.cc:124] Unable to open C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata: IO error: C:\Gestion_affichage\user_data\Bureau\Default\shared_proto_db\metadata/LOCK: Access denied. (ChromeMethodBFE: 15::LockFile::5)
-[0219/110352.598:INFO:CONSOLE:539] "Rendered http://10.192.43.139:1880/ui/css/app.min.less successfully.", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
-[0219/110352.602:INFO:CONSOLE:539] "CSS for http://10.192.43.139:1880/ui/css/app.min.less generated in 91ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
-[0219/110352.602:INFO:CONSOLE:539] "Less has finished. CSS generated in 92ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
-[0219/110352.636:INFO:CONSOLE:150] "You are using the ngTouch module. 
+[0219/110941.260:INFO:CONSOLE:539] "Rendered http://10.192.43.139:1880/ui/css/app.min.less successfully.", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/110941.262:INFO:CONSOLE:539] "CSS for http://10.192.43.139:1880/ui/css/app.min.less generated in 104ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/110941.262:INFO:CONSOLE:539] "Less has finished. CSS generated in 104ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/110941.280:INFO:CONSOLE:150] "You are using the ngTouch module. 
 AngularJS Material already has mobile click, tap, and swipe support... 
 ngTouch is not supported with AngularJS Material!", source: http://10.192.43.139:1880/ui/js/app.min.js (150)
-[0219/110352.790:INFO:CONSOLE:150] "SideNav 'left' is not available! Did you use md-component-id='left'?", source: http://10.192.43.139:1880/ui/js/app.min.js (150)
-[0219/110352.790:INFO:CONSOLE:150] "SideNav 'left' is not available! Did you use md-component-id='left'?", source: http://10.192.43.139:1880/ui/js/app.min.js (150)
-[0219/110352.815:INFO:CONSOLE:539] "Rendered http://10.192.43.139:1880/ui/css/app.min.less successfully.", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
-[0219/110352.816:INFO:CONSOLE:539] "CSS for http://10.192.43.139:1880/ui/css/app.min.less generated in 24ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
-[0219/110352.816:INFO:CONSOLE:539] "Less has finished. CSS generated in 24ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/110941.399:INFO:CONSOLE:150] "SideNav 'left' is not available! Did you use md-component-id='left'?", source: http://10.192.43.139:1880/ui/js/app.min.js (150)
+[0219/110941.400:INFO:CONSOLE:150] "SideNav 'left' is not available! Did you use md-component-id='left'?", source: http://10.192.43.139:1880/ui/js/app.min.js (150)
+[0219/110941.424:INFO:CONSOLE:539] "Rendered http://10.192.43.139:1880/ui/css/app.min.less successfully.", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/110941.425:INFO:CONSOLE:539] "CSS for http://10.192.43.139:1880/ui/css/app.min.less generated in 24ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)
+[0219/110941.425:INFO:CONSOLE:539] "Less has finished. CSS generated in 25ms", source: http://10.192.43.139:1880/ui/js/app.min.js (539)

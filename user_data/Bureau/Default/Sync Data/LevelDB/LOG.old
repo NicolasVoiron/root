@@ -1,2 +1,3 @@
-2026/02/19-11:01:44.799 5b40 Creating DB C:\Gestion_affichage\user_data\Bureau\Default\Sync Data\LevelDB since it was missing.
-2026/02/19-11:01:44.831 5b40 Reusing MANIFEST C:\Gestion_affichage\user_data\Bureau\Default\Sync Data\LevelDB/MANIFEST-000001
+2026/02/19-11:03:06.443 37ec Reusing MANIFEST C:\Gestion_affichage\user_data\Bureau\Default\Sync Data\LevelDB/MANIFEST-000001
+2026/02/19-11:03:06.451 37ec Recovering log #3
+2026/02/19-11:03:06.453 37ec Reusing old log C:\Gestion_affichage\user_data\Bureau\Default\Sync Data\LevelDB/000003.log 
