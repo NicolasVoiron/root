@@ -1,0 +1,1042 @@
+var Card = class {
+
+  static STATUS_OK = 'ok';
+  static STATUS_NOK = 'nok';
+  static STATUS_NA = 'na';
+
+  static COLOR_NA = '#5C8BC5';
+  static COLOR_NNOK = '#676667';
+  static COLOR_NOK = '#E73D3A';
+  static COLOR_OK = '#61D442';
+  static COLOR_UNAUDITED = '#F6F6F6';
+  static COLOR_TOAUDIT = '#F6F6F6';
+
+  static STATE = {
+    ok: 'ok', nok: 'nok', nnok: 'nnok',  na: 'na',
+    unaudited: 'unaudited', toaudit: 'toaudit'
+  };
+
+  static cards = null;
+  static proposedCards = [];
+
+  static frequencyLabels = {
+    daily: 'daily',
+    weekly: 'weekly',
+    monthly: 'monthly',
+    quarterly: 'quarterly',
+    half_yearly: 'half_yearly',
+    yearly: 'yearly'
+  };
+
+  static frequencyDaysWeek = {
+    monday: 'mon',
+    tuesday: 'tue',
+    wednesday: 'wed',
+    thursday: 'thu',
+    friday: 'fri'
+  };
+
+  static frequencyMonths = {
+    january: 0, february: 1, march: 2, april: 3,
+    may: 4, june: 5, july: 6, august: 7,
+    september: 8, october: 9, november: 10, december: 11
+  };
+
+  constructor( card ) {
+    this._id = card[ '_id' ];
+    this.card_id = card[ 'card_id' ];
+    this.cftaskmanager_id = card[ 'cftaskmanager_id' ];
+    this.checkpoints = card[ 'checkpoints' ];
+    this.color = card[ 'color' ];
+    this.comment = card[ 'comment' ];
+    this.creation_date = card[ 'createdAt' ];
+    this.delivery_date = card[ 'delivery_date' ];
+    this.desc = card[ 'desc' ];
+    this.frequency = card[ 'frequency' ];
+    this.history_status = card[ 'history_status' ];
+    this.last_status = card[ 'last_status' ];
+    this.nok = card[ 'nok' ];
+    this.number = card[ 'number' ];
+    this.pictures = card[ 'pictures' ];
+    this.picturesNok = card[ 'picturesNok' ];
+    this.picturesCheckpoints = card[ 'picturesCheckpoints' ];
+    this.place = card[ 'place' ];
+    this.status = card[ 'status' ];
+    this.themes = card[ 'themes' ];
+    this.title = card[ 'title' ];
+    this.uap_services = card[ 'uap_services' ];
+    this.users = card[ 'users' ];
+    this.redactor = card[ 'redactor' ];
+    this.waiting = card[ 'waiting' ] || [];
+    this.expirationDate = card[ 'expirationDate' ];
+    this.previousTask = card.previousTask || null;
+    this.unaudited = card.unaudited || card.nonAudited || false;
+    this.history_reintegration = card.history_reintegration || [];
+    this.status_success = card.status_success;
+    this.status_fail = card.status_fail;
+    this.status_unknown = card.status_unknown ;
+    this.modeRandomUsers = card[ 'modeRandomUsers' ] ? card.modeRandomUsers : [];
+    this.frequencyDays = card[ 'frequencyDays' ] ? card.frequencyDays : [];
+    this.frequencyMonths = card[ 'frequencyMonths' ] ? card.frequencyMonths : Object.values( Card.frequencyMonths );
+    this.safetyRegulated = card[ 'safetyRegulated' ] ? card.safetyRegulated : false;
+    this.editedBy = card[ 'editedBy' ];
+  }
+
+  static #modal_confirm = $( '<div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true"/>' );
+
+  // Function progress card
+  static #calculateProgress( alreadyDone,  initLenght ) { return ( 100 * alreadyDone ) / initLenght; }
+
+  static #closeModal() {
+    Card.#modal_confirm.off( 'hidden.bs.modal' );
+    Card.#modal_confirm.modal( 'hide' );
+    Card.#modal_confirm.find( '.modal-footer' ).html( '' );
+    Card.#modal_confirm.find( '.modal-title' ).html( '' );
+    Card.#modal_confirm.find( '#general-confirm-content' ).html( '' );
+  }
+
+  static #restartModal( _static ) {
+    const content = $( '#modal-general-confirm' ).html();
+    const modal = $( '<div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true"/>' );
+    Card.#modal_confirm.replaceWith( modal );
+    Card.#modal_confirm = modal;
+    Card.#modal_confirm.html( content );
+
+    $( '.modal-backdrop' ).remove();
+    Card.#modal_confirm.modal( {
+      backdrop: _static ? 'static' : false,
+      keyboard: false
+    } ).css( {
+      'cursor': 'progress'
+    } );
+    return Card.#modal_confirm;
+  }
+
+  static #initModal( title, elements ) {
+    return new Promise( resolve => {
+      // Replace the old modal with same content
+      const modal = Card.#restartModal( true );
+      modal.find( 'button.close' ).hide();
+
+      modal.find( '#general-confirm-content' ).html( '' );
+      modal.find( '.modal-dialog ' ).css( { 'min-width': '10%' } );
+      modal.find( '.modal-title' ).html( '' );
+      modal.find( '.modal-footer' ).html( '' );
+      modal.find( '.modal-title' ).html( title ).css( { 'min-width': '90%', 'text-align': 'center' } );
+      modal.find( '.modal-title' ).html( title );
+      modal.find( '#general-confirm-content' ).html( elements );
+
+      // This modal cannot be closed
+      // In case a user does it, show it again
+      let closeListener = () => {
+        modal.modal( 'show' );
+      };
+
+      modal
+        .off( 'hidden.bs.modal', closeListener )
+        .on( 'hidden.bs.modal', closeListener )
+        .modal( 'show' )
+        .css( { 'cursor': 'auto' } );
+    } );
+  }
+
+  static #processFinished( body ) {
+    return new Promise( resolve => {
+      if ( body.sendMail ) {
+        Evnt.emit( body.listener );
+      }
+
+      let btnOk = $( `<input type="button" class="button btnBlue" value="${OK}">` );
+      Card.#modal_confirm.find( '.modal-footer' ).html( btnOk );
+      btnOk.on( 'click', () => {
+        Card.#closeModal();
+        resolve();
+      } );
+    } );
+  }
+
+  static #askUserToContinue( body ) {
+    return new Promise( resolve => {
+      // Ask if the user wants to continue
+      let question = $( `<br><span>${CONTINUE_QUESTION}</span>` );
+      Card.#modal_confirm.find( '#general-confirm-content' ).append( question );
+      let btnYes = $( `<input type="button" class="button btnBlue" value="${YES}">` );
+      let btnNo = $( `<input type="button" class="button btnRed" value="${NO}">` );
+      Card.#modal_confirm.find( '.modal-footer' ).append( [ btnNo, btnYes ] );
+
+      btnYes.on( 'click', () => {
+        $( question ).remove();
+        Card.#modal_confirm.find( '.modal-footer' ).html( '' );
+        resolve( true );
+      } );
+
+      btnNo.on( 'click', () => {
+        if ( body.sendMail ) {
+          Evnt.emit( body.listener );
+        }
+
+        Card.#closeModal();
+        resolve( false );
+      } );
+
+    } );
+  }
+
+  static #actionContinueAPIProcess( body, pluralTxt, singText ) {
+    return new Promise( resolve => {
+      let title = pluralTxt.replace( '{0}', body.alreadyDone );
+      title = title.replace( '{1}', body.initLenght );
+      title = ( body.initLenght == 1 ) ? singText : title;
+      $( body.avance ).html( title );
+      $( body.progressBar ).find( '.progress-bar' ).css( 'width', Card.#calculateProgress( body.alreadyDone, body.initLenght ) + '%' );
+
+      // Process finished
+      if ( body.alreadyDone == body.initLenght && !body.ignoreFinish ) {
+        Card.#processFinished( body )
+          .then( () => {
+            resolve( true );
+          } );
+        return;
+      }
+
+      //body.obj = body.obj.slice( body.maxForEachArr );
+      if ( body.minAskUser && body.alreadyDone % body.minAskUser == 0 ) {
+        Card.#askUserToContinue( body )
+          .then( confirm => {
+            if ( confirm ) {
+              resolve( true );
+            } else {
+              resolve( false );
+            }
+          } );
+      } else {
+        resolve( true );
+      }
+    } );
+  }
+
+  static #prepareLastStatusObj( card, status, params ) {
+    var obj = {
+      userid: params.userid, card_id: card.card_id, task_id: card._id,
+      currentStatus: status,
+      comment: params.comment, date: params.date,
+      editedBy: params.editedBy
+    };
+
+    if ( params.auditpictures )
+      obj.auditpictures = params.auditpictures;
+
+
+    return obj;
+  }
+
+  static #deleteExtractionFile( filename ) {
+    return new Promise( ( resolve, reject ) => {
+      $.ajax( {
+        type: 'DELETE',
+        async: false,
+        url: `api/cards/export/${filename}`,
+        success: resolve,
+        error: reject
+      } );
+    } );
+  }
+
+  updateTask() {
+    const task = this;
+    return new Promise( ( resolve, reject ) => {
+      $.ajax( {
+        method: 'PUT',
+        url: `/api/task/${task._id}`,
+        data: task,
+        success: resp => {
+          resolve( resp );
+        },
+        error: reject
+      } );
+    } );
+
+  }
+
+  setNA( params ) {
+    const task = this;
+    return new Promise( ( resolve, reject ) => {
+      this.last_status = Card.STATUS_NA;
+      params.editedBy = userID;
+
+      Http.put( `/api/task/${task._id}/lastStatus`, 'JSON',
+        Card.#prepareLastStatusObj( task, Card.STATUS_NA, params ),
+        data => {
+          if ( data.error ) reject( data.error );
+          else resolve( data );
+        },
+        err => reject( getErrorTraduction( err ) )
+      );
+
+    } );
+  }
+
+  setOK( params ) {
+    const task = this;
+    return new Promise( ( resolve, reject ) => {
+      task.last_status = Card.STATE.ok;
+      params.editedBy = userID;
+
+      Http.put( `/api/task/${task._id}/lastStatus`, 'JSON',
+        Card.#prepareLastStatusObj( task, Card.STATE.ok, params ),
+        data => {
+          if ( data.error ) reject( data.error );
+          else resolve( data );
+        },
+        err => reject( getErrorTraduction( err ) )
+      );
+    } );
+  }
+
+  setNOK( params ) {
+    const task = this;
+    return new Promise( ( resolve, reject ) => {
+      task.last_status = Card.STATE.nok;
+      params.editedBy = userID;
+
+      Http.put( `/api/task/${task._id}/lastStatus`, 'JSON',
+        Card.#prepareLastStatusObj( task, Card.STATE.nok, params ),
+        data => {
+          if ( data.error ) reject( data.error );
+          else resolve( data );
+        },
+        err => reject( getErrorTraduction( err ) )
+      );
+    } );
+  }
+
+  setLastComment( comment ) {
+    const task = this;
+    return new Promise( ( resolve, reject ) => {
+      $.ajax( {
+        method: 'PUT',
+        url: `/api/task/${task._id}/lastComment`,
+        data: { comment: comment },
+        success: resolve,
+        error: err => reject( getErrorTraduction( err ) )
+      } );
+    } );
+  }
+
+  setWaiting() {
+    const $card = this;
+    return new Promise( ( resolve, reject ) => {
+      Http.put( `/api/card/${$card.card_id}/waiting`, 'JSON',
+        { waiting: $card },
+        data => {
+          if ( data.error ) {
+            return reject( data.error );
+          }
+          resolve( data );
+
+        },
+        err => reject( getErrorTraduction( err ) )
+      );
+    } );
+  }
+
+  getColor() {
+    const state = this.getState();
+    if ( state == Card.STATE.ok ) return Card.COLOR_OK;
+    if ( state == Card.STATE.nok ) return Card.COLOR_NOK;
+    if ( state == Card.STATE.nnok ) return Card.COLOR_NNOK;
+    if ( state == Card.STATE.na ) return Card.COLOR_NA;
+    if ( state == Card.STATE.unaudited ) return Card.COLOR_UNAUDITED;
+    return Card.COLOR_TOAUDIT;
+  }
+
+  getState() {
+    let len = this.history_status.length;
+    if ( len == 0 ) {
+      // Get this monday
+      // start of week on sunday, so we need to add one day
+      let now = moment().startOf( 'week' ).add( 1, 'days' );
+
+      let delivery = moment( this.delivery_date );
+
+      if ( delivery.format( 'YYYY-MM-DD' ) < now.format( 'YYYY-MM-DD' ) ) {
+        return Card.STATE.unaudited;
+      }
+      return Card.STATE.toaudit;
+    }
+
+
+    switch ( this.history_status[ len - 1 ].status ) {
+    case Card.STATUS_OK:
+      return Card.STATE.ok;
+    case Card.STATUS_NA:
+      return Card.STATE.na;
+    case Card.STATUS_NOK:
+      var plen = this.previousTask ? this.previousTask.history_status.length : 0;
+      if ( plen != 0 && this.previousTask.history_status[ plen - 1 ].status == Card.STATUS_NOK )
+        return Card.STATE.nnok;
+      return Card.STATE.nok;
+    default:
+      return Card.STATE.toaudit;
+    }
+  }
+
+  save() {
+    const $card = this;
+    return new Promise( ( resolve, reject ) => {
+      Http.post( '/api/cards/add', 'JSON',
+        {
+          cards: [ $card ]
+        },
+        resolve,
+        err => reject( getErrorTraduction( err ) )
+      );
+    } );
+  }
+
+  // == Static methods ==
+
+  static getTaskbyId( task_id ) {
+    return new Promise( ( resolve, reject ) => {
+      $.ajax( {
+        method: 'GET',
+        url: `/api/task/${task_id}`,
+        success: task => {
+          resolve( new Card( task ) );
+        },
+        error: reject
+      } );
+    } );
+  }
+
+  static getCardById( card_id ) {
+    return new Promise( ( resolve, reject ) => {
+      Http.get( `/api/card/${card_id}`, 'JSON', {},
+        function( data ) {
+          if ( data.error ) {
+            return reject( data.error );
+          }
+
+          resolve( new Card( data ), self._id );
+        },
+        err => reject( err.responseJSON.error )
+      );
+    } );
+  }
+
+  static load() {
+    return new Promise( ( resolve, reject ) => {
+      if ( Card.cards ) {
+        return resolve( Card.cards );
+      }
+
+      Http.get( '/api/getCards', 'JSON', {},
+        data => {
+          if ( data.error ) {
+            return reject( data.error );
+          }
+
+          Card.cards = data.map( card => new Card( card ) );
+          resolve( Card.cards, self._id );
+        },
+        err => reject( err.responseJSON.error )
+      );
+    } );
+  }
+
+  /**
+   * Get the text of the month
+   * @param {number} month_num
+   * @return {string}
+   */
+  static getMonthLabel( month_num ) {
+    for ( const [ month, idx ] of Object.entries( Card.frequencyMonths ) ) {
+      if ( month_num == idx ) {
+        return month;
+      }
+    }
+    return null;
+  }
+
+  /**
+     *
+     * @param {*} cards
+     */
+  static async initImportProcess( cards ) {
+    // Take photos and pdfs
+    let allFiles = new Map();
+    let photos = [];
+    let pdfs = [];
+
+    cards.forEach( c => {
+      if ( c.picturesCheckpoints && c.picturesCheckpoints.length > 0 ) {
+        c.picturesCheckpoints = c.picturesCheckpoints.filter( $thisFile => ( $thisFile.dependency && $thisFile.file_obj && $thisFile.filename && $thisFile.original_name ) );
+        c.picturesCheckpoints.forEach( f => {
+          allFiles.set( f.filename, f );
+        } );
+      }
+
+      if ( c.picturesNok && c.picturesNok.length > 0 ) {
+        c.picturesNok = c.picturesNok.filter( $thisFile => ( $thisFile.dependency && $thisFile.file_obj && $thisFile.filename && $thisFile.original_name ) );
+        c.picturesNok.forEach( f => {
+          allFiles.set( f.filename, f );
+        } );
+      }
+    } );
+
+    for ( const [ key, file ] of allFiles.entries() ) {
+      if ( file.isPdf() ) pdfs.push( file );
+      else photos.push( file );
+    }
+
+    Card.#initModal( IMPORTING_CARDS, [ null, null ] );
+
+    return new Promise( ( resolve, reject ) => {
+      ( async () => {
+        try {
+
+          await Card.importFiles( photos, 'photo' );
+          await Card.importFiles( pdfs, 'pdf' );
+
+          cards = cards.map( c => {
+            if ( c.picturesCheckpoints && c.picturesCheckpoints.length > 0 ) {
+              c.picturesCheckpoints = c.picturesCheckpoints.map( f => f.filename );
+            }
+
+            if ( c.picturesNok && c.picturesNok.length > 0 ) {
+              c.picturesNok = c.picturesNok.map( f => f.filename );
+            }
+
+            return c;
+          } );
+          await Card.importCards( cards );
+          resolve();
+        } catch ( e ) {
+          setTimeout( () => {
+            Card.#closeModal();
+            reject( e );
+          }, 500 );
+        }
+      } )();
+    } );
+  }
+
+  static importCards( cards ) {
+    let body = {
+      obj: cards,
+      maxForEachArr: 10,
+      alreadyDone: 0,
+      initLenght: cards.length,
+      avance: $( '<div style="margin-top: 15px"></div>' ),
+      progressBar: $( `<div class="progress">
+                                    <div class="progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>` ),
+    };
+
+    let setImport = async () => {
+      if ( body.obj.length <= 0  ) {
+        Card.#closeModal();
+        return;
+      }
+
+      return new Promise( ( resolve, reject ) => {
+        let send = body.obj.splice( 0, body.maxForEachArr );
+        body.alreadyDone += send.length;
+        Http.post( '/api/cards/add', 'JSON',  { cards: send },
+          () => {
+            Card.#actionContinueAPIProcess( body, IMPORTED_PROGRESS_CARDS, IMPORTED_PROGRESS_CARD )
+              .then( setImport )
+              .then( resolve )
+              .catch( reject );
+          },
+          err => reject( getErrorTraduction( err ) )
+        );
+      } );
+    };
+
+    return new Promise( ( resolve, reject ) => {
+      Card.#modal_confirm.find( '#general-confirm-content' ).append( [ body.avance, body.progressBar ] );
+      setImport()
+        .then( resolve )
+        .catch( reject );
+    } );
+  }
+
+  /**
+     *
+     * @param {FileGallery[]} files
+     * @param {string{photo|pdf}} type
+     * @returns
+     */
+  static async importFiles( files, type ) {
+    const title_sing = type == 'pdf' ? IMPORTED_PROGRESS_FILE : IMPORTED_PROGRESS_PHOTO;
+    const title_plur = type == 'pdf' ? IMPORTED_PROGRESS_FILES : IMPORTED_PROGRESS_PHOTOS;
+    let body = {
+      obj: files,
+      maxForEachArr: 2,
+      alreadyDone: 0,
+      initLenght: files.length,
+      avance: $( '<div style="margin-top: 15px"></div>' ),
+      progressBar: $( `<div class="progress" style="margin-top: 15px">
+                                <div class="progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>` ),
+      ignoreFinish: true
+    };
+
+    if ( files.length == 0 ) return [];
+
+    let setImport = async () => {
+      if ( body.obj.length <= 0 ) return;
+
+      const filesArr = body.obj.splice( 0, body.maxForEachArr );
+      body.alreadyDone += filesArr.length;
+
+      for ( const indx in filesArr ) {
+        const file = filesArr[ indx ];
+        try {
+          await file.save();
+        } catch ( e ) {
+          throw new Error( 'Error', e );
+        }
+
+      }
+
+      await Card.#actionContinueAPIProcess( body, title_plur, title_sing );
+      await setImport();
+      return;
+
+    };
+
+    return new Promise( ( resolve, reject ) => {
+      Card.#modal_confirm.find( '#general-confirm-content' ).append( [ body.avance, body.progressBar ] );
+      setImport()
+        .then( resolve )
+        .catch( reject );
+    } );
+  }
+
+  static uploadPicture( url, formData, dataType ) {
+    return new Promise( ( resolve, reject ) => {
+      Http.postPicture( url, dataType, formData,
+        data => resolve( data ),
+        err => reject( err )
+      );
+    } );
+  }
+
+  static getByTaskManager( tmid, cbok, cberr ) {
+    Http.get( '/api/taskmanager/' + tmid + '/cards', 'JSON', null, cbok, cberr );
+  }
+
+  static reintegrateCardsToPlanning( cards ) {
+    let obj = cards.map( c => c._id );
+
+    let body = {
+      obj: obj,
+      maxForEachArr: 10,
+      alreadyDone: 0,
+      minAskUser: 200,
+      initLenght: obj.length,
+      avance: $( '<div></div>' ),
+      progressBar: $( `<div class="progress">
+                                    <div class="progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>` )
+    };
+
+    let setReintegrate = async () => {
+      if ( body.obj.length <= 0 ) {
+        Card.#closeModal();
+        return;
+      }
+
+
+      return new Promise( ( resolve, reject ) => {
+        let send = body.obj.splice( 0, body.maxForEachArr );
+        body.alreadyDone += send.length;
+
+        Http.put( '/api/tasks/reintegrateToPlanning', 'JSON',  { tasks: send },
+          data => {
+            if ( data.error ) reject( data.error );
+
+            Card.#actionContinueAPIProcess( body, REINTEGRATED_PROGRESS_CARDS, REINTEGRATED_PROGRESS_CARD )
+              .then( async continue_ => {
+                if ( !continue_ ) body.obj = [];
+                await setReintegrate();
+              } )
+              .then( resolve )
+              .catch( reject );
+
+          },
+          err => reject( err.responseJSON.error )
+        );
+      } );
+    };
+
+    return new Promise( ( resolve, reject ) => {
+      Card.#initModal( REINTEGRATING_CARD_S, [ body.avance, body.progressBar ], body.cbok );
+      setReintegrate()
+        .then( resolve )
+        .catch( reject );
+    } );
+  }
+
+  static setCardsNonAudited( cardsToSend ) {
+    let obj = [];
+    cardsToSend.forEach( c => { obj.push( c._id ); } );
+
+    let body = {
+      obj: obj,
+      maxForEachArr: 10,
+      alreadyDone: 0,
+      minAskUser: 200,
+      initLenght: obj.length,
+      avance: $( '<div></div>' ),
+      progressBar: $( `<div class="progress">
+                                    <div class="progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>` )
+    };
+
+    // Separate process of unaudit tasks in order to send such a heavy amount of data
+    let setUnaudited = () => {
+      if ( body.obj.length <= 0 ) {
+        Card.#closeModal();
+        return;
+      }
+
+      return new Promise( ( resolve, reject ) => {
+        let send = body.obj.splice( 0, body.maxForEachArr );
+        body.alreadyDone += send.length;
+        Http.put( '/api/tasks/unaudited', 'JSON', { tasks: send },
+          data => {
+            if ( data.error ) reject( data.error );
+
+            Card.#actionContinueAPIProcess( body,  CANCELED_PROGRESS_CARDS, CANCELED_PROGRESS_CARD )
+              .then( async continue_ => {
+                if ( !continue_ ) body.obj = [];
+                await setUnaudited();
+              } )
+              .then( resolve )
+              .catch( reject );
+          },
+          err => reject( err.responseJSON.error )
+
+        );
+      } );
+    };
+
+    return new Promise( ( resolve, reject ) => {
+      Card.#initModal( CANCELING_AUDITS, [ body.avance, body.progressBar ] );
+      setUnaudited()
+        .then( resolve )
+        .catch( reject );
+    } );
+  }
+
+  static accepteCards( cardsToSend ) {
+    let obj = []; let objCopy = [];
+    cardsToSend = cardsToSend.map( c => new Card( c ) );
+    cardsToSend.forEach( c => {
+      obj.push( new Card( c ) );
+      objCopy.push( { card_id: c._id } );
+    } );
+
+    let body = {
+      obj: obj,
+      maxForEachArr: 10,
+      alreadyDone: 0,
+      minAskUser: 200,
+      initLenght: obj.length,
+      avance: $( '<div></div>' ),
+      progressBar: $( `<div class="progress">
+                                    <div class="progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>` ),
+      iniTialObj: objCopy,
+      listener: 'AcceptFinished',
+      sendMail: true,
+      alreadySent: false
+    };
+
+    let sendMail = () => {
+      return new Promise( ( resolve, reject ) => {
+        window.removeEventListener( body.listener, sendMail );
+        if ( !body.alreadySent ) {
+          body.alreadySent = true;
+          Http.put( '/api/cards/accepte', 'JSON', { cards: body.iniTialObj.slice( 0, body.alreadyDone ), sendMail: true },
+            data => {},
+            err => reject( err.responseJSON.error )
+          );
+        }
+      } );
+    };
+
+    let setAccepte = () => {
+      window.removeEventListener( body.listener, sendMail );
+      window.addEventListener( body.listener, sendMail );
+
+      if ( body.obj.length <= 0 ) {
+        Card.#closeModal();
+        return;
+      }
+
+      return new Promise( ( resolve, reject ) => {
+        let send = body.obj.splice( 0, body.maxForEachArr );
+        body.alreadyDone += send.length;
+        Http.put( '/api/cards/accepte', 'JSON', { cards: send },
+          data => {
+            if ( data.error ) reject( data.error );
+
+            Card.#actionContinueAPIProcess( body, ACCEPTED_PROGRESS_CARDS, ACCEPTED_PROGRESS_CARD )
+              .then( async continue_ => {
+                if ( !continue_ ) body.obj = [];
+                await setAccepte();
+              } )
+              .then( resolve )
+              .catch( reject );
+
+          },
+          reject
+        );
+      } );
+    };
+
+    return new Promise( ( resolve, reject ) => {
+      Card.#initModal( ACCEPTING_CARD_S, [ body.avance, body.progressBar ], body.cbok );
+      setAccepte()
+        .then( resolve )
+        .catch( err => {
+          setTimeout( () => {
+            Card.#closeModal();
+            reject( getErrorTraduction( err ) );
+          }, 500 );
+        } );
+    } );
+  }
+
+  static refuseCards( cardsToSend ) {
+    let obj = []; let objCopy = [];
+    cardsToSend.forEach( c => {
+      obj.push( { card_id: c._id } );
+      objCopy.push( { card_id: c._id } );
+    } );
+
+    let body = {
+      obj: obj,
+      maxForEachArr: 10,
+      alreadyDone: 0,
+      minAskUser: 200,
+      initLenght: obj.length,
+      avance: $( '<div></div>' ),
+      progressBar: $( `<div class="progress">
+                                    <div class="progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>` ),
+      iniTialObj: objCopy,
+      listener: 'RefuseFinished',
+      sendMail: true,
+      alreadySent: false
+    };
+
+    let sendMail = () => {
+      return new Promise( ( resolve, reject ) => {
+        window.removeEventListener( body.listener, sendMail );
+        if ( !body.alreadySent ) {
+          body.alreadySent = true;
+          Http.put( '/api/cards/refuse', 'JSON', { cards: body.iniTialObj.slice( 0, body.alreadyDone ), sendMail: true },
+            data => {},
+            err => reject( err.responseJSON.error )
+          );
+
+        }
+      } );
+    };
+
+    let setRefuse = () => {
+
+      window.removeEventListener( body.listener, sendMail );
+      window.addEventListener( body.listener, sendMail );
+
+      if ( body.obj.length <= 0 ) {
+        Card.#closeModal();
+        return;
+      }
+
+      return new Promise( ( resolve, reject ) => {
+        let send = body.obj.splice( 0, body.maxForEachArr );
+        body.alreadyDone += send.length;
+        Http.put( '/api/cards/refuse', 'JSON', { cards: send },
+          data => {
+            if ( data.error ) reject( data.error );
+
+            Card.#actionContinueAPIProcess( body, REFUSED_PROGRESS_CARDS, REFUSED_PROGRESS_CARD )
+              .then( async continue_ => {
+                if ( !continue_ ) body.obj = [];
+                await setRefuse();
+              } )
+              .then( resolve )
+              .catch( reject );
+          },
+          err => reject( err.responseJSON.error )
+        );
+      } );
+    };
+
+    return new Promise( ( resolve, reject ) => {
+      Card.#initModal( REFUSING_CARD_S, [ body.avance, body.progressBar ] );
+      setRefuse()
+        .then( resolve )
+        .catch( reject );
+    } );
+  }
+
+  static setReadCards( cardsToSend ) {
+    let obj = cardsToSend.map( c => c._id );
+
+    let body = {
+      obj: obj,
+      maxForEachArr: 10,
+      alreadyDone: 0,
+      minAskUser: 200,
+      initLenght: obj.length,
+      avance: $( '<div></div>' ),
+      progressBar: $( `<div class="progress">
+                                    <div class="progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>` )
+    };
+
+    let setRead = () => {
+      if ( body.obj.length <= 0 ) {
+        Card.#closeModal();
+        return;
+      }
+
+      return new Promise( ( resolve, reject ) => {
+        let send = body.obj.splice( 0, body.maxForEachArr );
+        body.alreadyDone += send.length;
+        Http.put( '/api/tasks/readNOK', 'JSON', { tasks: send },
+          data => {
+            if ( data.error ) reject( data.error );
+            Card.#actionContinueAPIProcess( body, READ_PROGRESS_CARDS, READ_PROGRESS_CARD )
+              .then( async continue_ => {
+                if ( !continue_ ) body.obj = [];
+                await setRead();
+              } )
+              .then( resolve )
+              .catch( reject );
+          },
+          err => reject( err.responseJSON.error )
+
+        );
+      } );
+    };
+
+    return new Promise( ( resolve, reject ) => {
+      Card.#initModal( READING_CARD_S, [ body.avance, body.progressBar ] );
+      setRead()
+        .then( resolve )
+        .catch( reject );
+    } );
+  }
+
+  static exportCards( cards, taskmanagerid ) {
+    return new Promise( ( resolve, reject ) => {
+      $.ajax( {
+        method: 'POST',
+        url: 'api/cards/export',
+        data: {
+          cards_id: cards,
+          taskmanager_id: taskmanagerid
+        },
+        success: function( res ) {
+          let fileUrl = `ressources/exportCards/${res.filename}.zip`;
+          const downloadLink = document.createElement( 'a' );
+          downloadLink.href = fileUrl;
+          downloadLink.download = `${res.filename}.zip`;
+          downloadLink.click();
+          resolve();
+
+          // Delete extraction file
+          setTimeout( () => {
+            const filename = `${res.filename}.zip`;
+            Card.#deleteExtractionFile( filename );
+          }, 1000 );
+
+        },
+        error: reject
+      } );
+    } );
+  }
+
+  static printPDFCards( cards, taskmanagerid ) {
+    return new Promise( ( resolve, reject ) => {
+      $.ajax( {
+        method: 'POST',
+        url: 'api/cards/printPDF',
+        data: {
+          cards_id: cards,
+          taskmanager_id: taskmanagerid
+        },
+        success: function( res ) {
+          let fileUrl = `ressources/exportCards/${res.filename}`;
+          const downloadLink = document.createElement( 'a' );
+          downloadLink.href = fileUrl;
+          downloadLink.download = moment().format( 'DD_MM_YYYY_' ) + res.filename.split( '_' ).slice( 1 ).join( '_' );
+          downloadLink.click();
+          resolve();
+
+          // Delete extraction file
+          setTimeout( () => {
+            Card.#deleteExtractionFile( res.filename );
+          }, 1000 );
+        },
+        error: reject
+      } );
+    } );
+  }
+
+  static deleteCards( cards_id ) {
+    let body = {
+      obj: cards_id,
+      maxForEachArr: 10,
+      alreadyDone: 0,
+      minAskUser: 200,
+      initLenght: cards_id.length,
+      avance: $( '<div></div>' ),
+      progressBar: $( `<div class="progress">
+                                    <div class="progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>` )
+    };
+
+
+    let deleteCards = () => {
+      if ( body.obj.length <= 0 ) {
+        Card.#closeModal();
+        return;
+      }
+
+      return new Promise( ( resolve, reject ) => {
+        let send = body.obj.splice( 0, body.maxForEachArr );
+        body.alreadyDone += send.length;
+        Http.delete( '/api/cards', 'JSON', { cards_id: send },
+          data => {
+            if ( data.error ) reject( data.error );
+
+            Card.#actionContinueAPIProcess( body,  DELETE_PROGRESS_CARDS, DELETE_PROGRESS_CARD )
+              .then( async continue_ => {
+                if ( !continue_ ) body.obj = [];
+                await deleteCards();
+              } )
+              .then( resolve )
+              .catch( reject );
+          },
+          err => reject( err.responseJSON ? err.responseJSON.error : err )
+        );
+      } );
+    };
+
+    return new Promise( ( resolve, reject ) => {
+      Card.#initModal( DELETING_CARDS, [ body.avance, body.progressBar ] );
+      deleteCards()
+        .then( resolve )
+        .catch( reject );
+    } );
+  }
+};

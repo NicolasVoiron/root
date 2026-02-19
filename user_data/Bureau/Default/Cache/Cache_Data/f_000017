@@ -1,0 +1,739 @@
+/* Variables */
+var sectorservice = sectorservice ?? [];
+
+// ========================================================
+$( document ).ready( () => {
+  refreshCurrentUser( () =>{
+    var importedClass = [
+      'Evnt'
+      , 'DateJS'
+      , 'GenericPopup'
+      , 'Http'
+      , 'JQueryHTTP'
+      , 'User'
+      , 'Card'
+      , 'Theme'
+      , 'TaskManager'
+      , 'Board'
+      , 'ModalImage'
+      , 'SectorService'
+      , 'Filter'
+      , 'Company'
+      , 'Gallery'
+      , 'FileGallery'
+    ];
+
+    importClass( importedClass, PREFIXAPI + '/ressources/class/' );
+  } );
+} );
+
+var sortAlphaMyArray = ( myArray, param ) => {
+  myArray.sort( ( a, b ) => {
+    var a1 = a ;
+    var b1 = b ;
+
+    if ( typeof param != 'undefined' && param != null ) {
+      a1 = a[ param ] ;
+      b1 = b[ param ] ;
+    }
+
+    a1 = a1.toLowerCase() ;
+    a1 = a1.replace( /à/g, 'a' );
+    a1 = a1.replace( /ç/g, 'c' );
+    a1 = a1.replace( /é/g, 'e' );
+    a1 = a1.replace( /è/g, 'e' );
+    a1 = a1.replace( /ê/g, 'e' );
+    a1 = a1.replace( /î/g, 'i' );
+    a1 = a1.replace( /û/g, 'u' );
+    a1 = a1.replace( /ù/g, 'u' );
+    b1 = b1.toLowerCase();
+    b1 = b1.replace( /à/g, 'a' );
+    b1 = b1.replace( /ç/g, 'c' );
+    b1 = b1.replace( /é/g, 'e' );
+    b1 = b1.replace( /è/g, 'e' );
+    b1 = b1.replace( /ê/g, 'e' );
+    b1 = b1.replace( /î/g, 'i' );
+    b1 = b1.replace( /û/g, 'u' );
+    b1 = b1.replace( /ù/g, 'u' );
+
+    if ( a1 < b1 ) return -1;
+    if ( a1 > b1 ) return 1;
+    return 0;
+  } );
+};
+
+function createDataTable( table, params ) {
+  let datatable;
+
+  try {
+    $( table ).DataTable().destroy();
+  } catch ( e ) {
+    console.log( e );
+  }
+
+  if ( params == undefined ) {
+    datatable = $( table ).DataTable( data_table_param );
+  } else  {
+    datatable = table.DataTable( { ...data_table_param, ...params } );
+  }
+  return datatable;
+}
+
+/**
+ * Function init
+*/
+function init() {
+  var checkTotal = 5; // 5 classes to charge
+  var checked = 0;    // Init counter
+  monday = moment().startOf( 'isoWeek' );
+
+  // == ACTIVITY ==
+  activeEvent(); // Verify activity
+  setTimeout( 'testerActivite();', intervalle_to_inactivite );
+  // ==============
+
+  chargeClasses();
+
+  function checkRun() {
+    checked++;
+    if ( checkTotal == checked ) {
+      createThemeListener( themes );
+      Evnt.emit( 'Init.loaded' );
+      Evnt.emit( 'Settings.SettingsLoaded' );
+    }
+  }
+
+  function chargeClasses() {
+    Theme.load( thms => {
+      themes = thms;
+      Evnt.emit( Theme.event.ThemesLoaded );
+      checkRun();
+    },
+    console.error
+    );
+
+    TaskManager.load()
+      .then( tasksM => {
+        allTaskManager = tasksM;
+        Tasks = tasksM;
+        verifyVerMenu( allTaskManager );
+        Evnt.emit( 'TasksManagersLoaded' );
+        checkRun();
+      }
+      )
+      .catch( console.error );
+
+    SectorService.get()
+      .then( data => {
+        sectorservice = data && Array.isArray( data ) ? data : [];
+        checkRun();
+      } )
+      .catch( err => console.log( err ) );
+
+    Company.load()
+      .then( company => {
+        COMPANY = company;
+        checkRun();
+      } )
+      .catch( console.error );
+
+    loadSettings(
+      settings => {
+        SETTINGS = settings;
+        $.ajax( {
+          method: 'GET',
+          url: '/api/version.json',
+          success: data => {
+            SETTINGS.version = data.version;
+            afficherFooter();
+            setCurrentMenu();
+            checkRun();
+          },
+          error: err => { console.log( err ); }
+        } );
+      }
+    );
+  }
+}
+
+$( window ).resize( () => { setCurrentMenu(); } );
+
+function setCurrentMenu() {
+  let nav = $( '#nav.left' );
+  if ( nav.length > 0 ) { set_menu_left(); }
+  else { set_menu_up(); }
+  //$( window ).resize();
+}
+
+function createThemeListener( themes ) {
+  window.addEventListener( 'Settings.SettingsLoaded', () => {
+    if ( SETTINGS.hasOwnProperty( 'displayThemes' ) && SETTINGS.displayThemes ) {
+      if ( !themes || themes.length === 0 ) {
+        window.addEventListener( Theme.event.ThemesLoaded, () => {
+          displayThemes();
+          $( '#themesContainer' ).show();
+        } );
+      } else {
+        displayThemes();
+        $( '#themesContainer' ).show();
+        setCurrentMenu();
+      }
+    }
+  } );
+
+  window.addEventListener( Theme.event.ThemeUpdated, () => {
+    displayThemes();
+    board.reloadCards( monday );
+  } );
+
+  window.addEventListener( Theme.event.ThemeAdded, () => { displayThemes(); } );
+
+  window.addEventListener( Theme.event.ThemeDeleted, () => { displayThemes(); } );
+}
+
+function verifyVerMenu( allTaskManager ) {
+  if ( admn ) {
+    showNavForAdmin();
+    return;
+  } else {
+    //console.log('non gral admin');
+    showNavNonAdmin();
+
+    if ( params.taskmanagerid && params.taskmanagerid != 'undefined' ) {
+      let task;
+      allTaskManager.forEach( taskMang => {
+        if ( taskMang._id == params.taskmanagerid ) {
+          task = taskMang;
+        }
+      } );
+
+      let usr = task.admin.filter( idAdmnSpec => idAdmnSpec == userID );
+      if ( usr.length > 0 ) {
+        showNavForAdminSpec(); //Spec admin
+        return;
+      } else {
+        // Not admin
+        usr = task.redactor  ? task.redactor.filter( idAdmnSpec => idAdmnSpec == userID ) : [];
+        if ( usr.length > 0 ) {
+          showNavRedactor(); // Is redactor
+          return;
+        } else {
+          showNavUserWithParam();
+        }
+      }
+    } else {
+      if ( isAdminAtLeastOneTaskM( allTaskManager ) || isRedactorAtLeastOneTaskM( allTaskManager ) ) {
+        showNavAtLeastRedactor(); // at least admin or redactor once
+        return;
+      } else {
+        // Normal user
+        if ( params.taskmanagerid && !isAdminAtLeastOneTaskM( allTaskManager ) && !isRedactorAtLeastOneTaskM( allTaskManager ) ) {
+          $( '#menu-logo' ).click();
+        }
+        showNavUserWithoutParam();
+        return;
+      }
+    }
+
+  }
+}
+
+function verifRightsMinAdminGral() {
+  if ( admn ) return true;
+  return false;
+}
+
+function verifRightsMinAdminSpec( allTaskManager ) {
+  let verif = false;
+  if ( admn ) return true;
+
+  // Obtenir taskManager
+  let task;
+  allTaskManager.forEach( taskMang => {
+    if ( taskMang._id == params.taskmanagerid ) task = taskMang;
+  } );
+
+  // VerifMin admin spec
+  let admnSpec = task.admin.filter( idAdmnSpec => idAdmnSpec == userID );
+  if ( admnSpec.length > 0 ) verif = true;
+  return verif;
+}
+
+function verifRightsMinRedactorSpec( allTaskManager ) {
+  let verif = false;
+  if ( admn ) return  true;
+
+  let task;
+  allTaskManager.forEach( taskMang => {
+    if ( taskMang._id == params.taskmanagerid ) task = taskMang;
+  } );
+
+  let usr = task.admin.filter( idAdmnSpec => idAdmnSpec == userID );
+  if ( usr.length > 0 ) {
+    verif = true;  // Is admin spec
+  } else {
+    // Not admin
+    usr = task.redactor.filter( idAdmnSpec => idAdmnSpec == userID );
+    if ( usr.length > 0 ) {
+      verif = true; // is redactor
+    }
+  }
+  return verif;
+}
+
+function verifRightsMinRedactorInAnyTable( allTaskManager ) {
+  let verif = false;
+  if ( admn ) verif =  true;
+
+  let task;
+  for ( let index = 0; index < allTaskManager.length; index++ ) {
+    task = allTaskManager[ index ];
+    let usr = task.admin.filter( idAdmnSpec => idAdmnSpec == userID );
+    if ( usr.length > 0 ) {
+      verif = true;  // Is admin spec
+    } else {
+      // Not admin spec
+      usr = [];
+      if ( task.redactor ) usr = task.redactor.filter( idAdmnSpec => idAdmnSpec == userID );
+      if ( usr.length > 0 ) {
+        verif = true; // Is redactor
+      }
+    }
+  }
+  return verif;
+}
+
+function isAdmin() {
+  if ( !admn ) {
+    $( '#menu-logo' ).click();
+  }
+}
+
+function isSpecAdmin( adminSpec ) {
+  if ( !admn ) {
+    if ( !adminSpec ) {
+      $( '#menu-logo' ).click();
+    }
+  }
+}
+
+function goToTaskManager( id ) {
+  if ( id && id != 'undefinded' ) {
+    window.location = formatKamishibaiUrl( '/taskManager?taskmanagerid=' + id );
+  } else {
+    choiceTaskManager();
+  }
+}
+
+function isAdminAtLeastOneTaskM( allTaskManager ) {
+  let valid = false;
+  for ( let index = 0; index < allTaskManager.length; index++ ) {
+    if ( allTaskManager[ index ].admin ) {
+      if ( allTaskManager[ index ].admin.length > 0 ) {
+        let ret = allTaskManager[ index ].admin.filter( idAdmnSpec => idAdmnSpec == userID );
+        if ( ret[ 0 ] != undefined ) {
+          valid = true;
+          break;
+        }
+      }
+
+    }
+  }
+  return valid;
+}
+
+function isRedactorAtLeastOneTaskM( allTaskManager ) {
+  let valid = false;
+  for ( let index = 0; index < allTaskManager.length; index++ ) {
+    if ( allTaskManager[ index ].redactor ) {
+      if ( allTaskManager[ index ].redactor.length > 0 ) {
+        let ret = allTaskManager[ index ].redactor.filter( idAdmnSpec => idAdmnSpec == userID );
+        if ( ret[ 0 ] != undefined ) {
+          valid = true; // Redactor
+          break;
+        }
+      }
+    }
+  }
+  return valid;
+}
+
+function widthTheaderTaskManager() {
+  $( id_containerChoiceTaskManager_fixed + ' table' ).css( { 'max-width': $( '#postitTab' ).width() } );
+  $( id_containerChoiceTaskManager_fixed ).css( { 'width': $( '#postitTab' ).width() } );
+
+  $( id_table_postitTab_fixed ).css( { 'width': $( id_table_postitTab ).width(), 'margin': '0px' } );
+  $( id_blank_space ).css( { 'width': $( '#postitTab' ).width() } );
+
+  let wth = $( '#containerChoiceTaskManager-fixed' ).width() + 50;
+  $( '.blank-space' ).css( { 'width': wth } );
+
+  if ( $( window ).width() >= 1950 ) {
+    $( '#boardContainerLeft' ).removeClass( 'col-9' );
+    $( '#kpiContainerRight' ).removeClass( 'col-3' );
+
+    $( '#boardContainerLeft' ).addClass( 'col-10' );
+    $( '#kpiContainerRight' ).addClass( 'col-2' );
+  }
+  Evnt.emit( 'TheaderReady' );
+}
+
+function resizeUserImage( id ) {
+  let porc = 0;
+  porc = ( $( `${id} .thUser` ).width() * 30 ) / 100;
+  $( `${id} .thUser img` ).css( { 'height': `${porc}px`, 'width': `${porc}px` } );
+  $( `${id} .thUser` ).css( { 'visibility': 'visible' } );
+}
+
+function activeEvent() {
+  $( 'body' ).mousemove( event => {
+    activite_detecte = true;
+    var inactif = localStorage.inactif;
+    try {
+      inactif = JSON.parse( inactif );
+    } catch ( e ) {}
+    if ( inactif  && !isLock ) LockTaskManager();
+  } );
+
+  $( 'body' ).keydown( () => {
+    activite_detecte = true;
+    keyboard_activite = true;
+  } );
+}
+
+function testerActivite() {
+  if ( activite_detecte ) {
+    activite_detecte = false;
+    temps_inactivite = 0;
+  } else {
+    temps_inactivite += intervalle_to_inactivite;
+    if ( temps_inactivite >= inactivity_time_total ) {
+      localStorage.inactif  = true;
+      $( '#blankWithoutColor' ).css( 'display', 'block' );
+      activeEvent();
+    }
+  }
+
+  setTimeout( 'testerActivite();', intervalle_to_inactivite );
+}
+
+function LockTaskManager() {
+  isLock = true;
+  $( '#nameCurrentUser' ).html( '' );
+
+  User.getById( userID )
+    .then( user => {
+      $( '#nameCurrentUser' ).html( `${user.firstname} ${user.lastname}` );
+    } )
+    .catch( err => {
+      console.log( 'Erreur lors du chargement de l\'utilisateur', err );
+    } );
+
+  if ( SETTINGS.hasOwnProperty( 'oauth' ) ) {
+    localStorage.inactif = false;
+    redirectToAuthentication();
+  }
+
+  setTimeout( 'verifActivityKeyboard();', 5000 );
+}
+
+function verifActivityKeyboard() {
+  if ( keyboard_activite ) {
+    keyboard_activite = false;
+    temps_inactivite_keyboard = 0;
+    setTimeout( 'verifActivityKeyboard();', 5000 );
+  } else {
+    temps_inactivite_keyboard += 5000;
+    if ( temps_inactivite_keyboard >= 6 * 5000 ) {
+      closePopUp( 'popUpUnlockTaskManager', 'blankLocked' );
+      activeEvent();
+      isLock = false;
+      temps_inactivite_keyboard = 0;
+    } else {
+      setTimeout( 'verifActivityKeyboard();', 5000 );
+    }
+  }
+}
+
+function checkIfRun( checkP, totalCheckP ) {
+  if ( checkP == totalCheckP ) return run();
+}
+
+function run() {
+  for ( var i in taskManager.admin ) {
+    if ( taskManager.admin[ i ] == userID ) {
+      adminSpec = true;
+      break;
+    }
+  }
+
+  $( '#headerUser' ).html( taskManager.name );
+  $( '#headerUser' ).css( 'display', 'block' );
+
+  adminSpec = false;
+  if ( taskManager.admin.indexOf( userID ) >= 0 ) {
+    adminSpec = true;
+  }
+
+  redactor = false;
+  if ( taskManager.redactor && taskManager.redactor.indexOf( userID ) >= 0 ) {
+    redactor = true;
+  }
+
+  board = new Board( $( '#postitTab' ), taskManager._id, monday, taskManager.users, DateJS.getYear( monday ), '#8b8888;', SETTINGS, themes );
+  board.init();
+
+  $( window ).resize();
+  if ( pagePrin ) { board.build(); }
+
+
+  if ( admn || adminSpec ) {
+    if ( admn ) { showNavForAdmin(); }
+    else { showNavForAdminSpec(); }
+
+    board.loadAdministrationCards();
+  } else {
+    showNavNonAdmin();
+
+    if ( redactor ) { showNavRedactor(); }
+  }
+
+  setTimeout( () => {
+    board.resizeFloatable();
+  }, 1000 );
+
+  return board;
+}
+
+$( '.fa-calendar' ).closest( '.input-group-prepend' ).click( () => {
+  $( this ).prev().trigger( 'click' );
+} );
+
+function hideMenuElements() {
+  $( '#menu-cards' ).hide();
+  $( '#menu-table' ).remove();
+}
+
+function afficherFooter() {
+  moment.locale( LANGUAGE );
+
+  $( '#footerText' ).append( `${VERSION} : ${SETTINGS.version}` );
+
+  $.ajax( {
+    async: false,
+    method: 'GET',
+    url: `${PREFIXAPI}/license`,
+    success: data => {
+      if ( data.date ) {
+        if ( moment( data.date, LICENCE_DATE_FORMAT ) < moment().startOf( 'day' ).add( LICENCE_DAY_SHOW_MSG_INFORMATION, 'days' ) ) {
+          let license_expired = LICENSE_WILL_EXPIRED.replace( '{0}', moment( data.date ).format( 'LL' ) );
+          let html = '<div class="license tooltip"> \
+                        <i class="fas fa-exclamation-triangle"></i> \
+                        <span class="tooltiptext">' + license_expired + '</span> \
+                        </div>';
+
+          $( '#footerText' ).prepend( html );
+        }
+      }
+    }
+  } );
+}
+
+function updateUser( id ) {
+  if ( params.taskmanagerid ) { window.location = formatKamishibaiUrl( `/manageUser?userID=${id}&taskmanagerid=${params.taskmanagerid}` ); }
+  else { window.location = formatKamishibaiUrl( `/manageUser?userID=${id}` ); }
+}
+
+function displayThemes() {
+  $( 'footer #themesContainer' ).html( '' );
+
+  for ( let i in themes ) {
+    if ( themes[ i ].color && themes[ i ].name ) {
+      let style = `border-left-color: ${themes[ i ].color}; cursor : pointer`;
+      $( 'footer #themesContainer' ).append(
+        `<div class="block" onClick="updateThemeAction('${i}')">
+                        <div class="color" style="background: ${themes[ i ].color}"></div> 
+                        <div style="${style}" data-toggle="tooltip" data-placement="top" 
+                            title="${themes[ i ].name.toUpperCase()}">${themes[ i ].name.toUpperCase()}
+                        </div>
+                    </div>` );
+    }
+  }
+
+  $( '#containerPostit' ).css( 'padding-bottom', ( $( 'footer' ).height() + 50 ) + 'px' );
+
+  setTimeout( () => {
+    setCurrentMenu();
+  }, 1000 );
+}
+
+function updateThemeAction( id ) {
+  if ( !admn || !admn && !adminSpec ) return;
+  let tskmid = params.taskmanagerid ? `&taskmanagerid=${params.taskmanagerid}` : '' ;
+  window.location = `${PREFIXAPI}/manageTheme?idTheme=${id}${tskmid}`;
+}
+
+function verifyEmptyFields( $container, $inputs ) {
+  let verif = true;
+  for ( let index = 0; index < $inputs.length; index++ ) {
+    const element = $( $inputs[ index ] );
+    if ( !$( element ).val() || $( element ).val().length <= 0 ) {
+      verif = false;
+      $( element ).closest( '.inputFormContainer' ).find( '.error' ).removeClass( 'errorDisplay' );
+    } else {
+      $( element ).closest( '.inputFormContainer' ).find( '.error' ).addClass( 'errorDisplay' );
+    }
+  }
+
+  if ( !verif ) {
+    let el = $inputs[ 0 ];
+    $( el ).trigger( 'focus' );
+    setTimeout( () => {
+      $( '#modalFieldsRequired' ).modal( 'show' );
+      $( '#modalRequiredTitle' ).html( INVALID_EMPTY_FIELDS_TITLE );
+      $( '#modalFieldsRequired .modal-body p' ).html( `${INVALID_EMPTY_FIELDS}` );
+      $( '#modalFieldsRequired .btn-modal-ok' ).append( CLOSE );
+
+      $( '.closeTitleModalLengthRequired, #modalFieldsRequired .btn-modal-ok' ).on( 'click', () => {
+        $( '#modalFieldsRequired' ).modal( 'hide' );
+      } );
+
+    }, 500 );
+  } else {
+    return verif;
+  }
+}
+
+function verifyValidImageExtension( e, extensionsValides ) {
+  var file = e.target.files[ 0 ];
+  let validExt = extensionsValides.filter( ( el, inx ) => {
+    return el == file.type;
+  } );
+
+  if ( validExt.length == 0 ) {
+    let msg = ''; let i = 0;
+    extensionsValides.forEach( e => {
+      if ( i < extensionsValides.length - 1 ) { msg += e + ', '; }
+      else { msg += e + '.'; }
+      i++;
+    } );
+
+    let modal = $( '#modal-general-confirm' );
+    $( modal ).modal( 'show' );
+    $( modal ).find( '.modal-title' ).html( INVALID_IMAGE_EXTENSION );
+    $( modal ).find( '.modal-body' ).html( `${VALID_IMAGES_CHOICE} : ${msg}` );
+    return false;
+  } else {
+    return true;
+  }
+}
+
+var lastResize = null;
+
+async function refreshCurrentUser( fn ) {
+  if ( userID === undefined ) return;
+
+  let user = new User( userID );
+  user = await user.refreshCurrentUser();
+  userID = user._id;
+  admn = isTrue( user.admin );
+  fn();
+}
+
+function getImageFromCheckState( state ) {
+  let imgStat = '';
+  switch ( state ) {
+  case STATE.toaudit     :  { imgStat = img_check_toaudit;   break; }
+  case STATE.ok          :  { imgStat = img_check_ok;        break; }
+  case STATE.nok         :  { imgStat = img_check_nok;       break; }
+  case STATE.nnok        :  { imgStat = img_check_nnok;      break; }
+  case STATE.unaudited :  { imgStat = img_check_unaudited; break; }
+  case STATE.na          :  { imgStat = img_check_na;        break; }
+  }
+  return imgStat;
+}
+
+function showModalSomething( title, body, footer, styles = {}, show = true ) {
+  let modal = $( '#modal-general-confirm' );
+  modal.find( '.modal-title' ).html( title );
+  $( '#general-confirm-content' ).html( body );
+  modal.find( '.modal-footer' ).html( footer );
+
+  if( show ) {
+    modal.modal( 'show' );
+  }
+
+  let minW = styles.hasOwnProperty('minWidth') ? styles.minWidth : 'fit-content';
+  $( '#modal-general-confirm .modal-dialog ' ).css( 'min-width', minW );
+  return modal;
+}
+// ==================================
+
+// Updating a task
+/**
+ * Display a modal with error message
+ * @param {Object<{
+ *      error: string
+ *    }> |
+ *    string
+ * } err : Error message
+ */
+function showErrorCode( err ) {
+  $( '.modal-backdrop' ).remove();
+  const $modal_old = $( '#modal-general-confirm' );
+
+  const content = $modal_old.html();
+  const $modal = $( '<div class="modal fade" id="modal-general-confirm" tabindex="-1" role="dialog" aria-hidden="true"/>' );
+  $modal_old.replaceWith( $modal );
+  $modal.html( content );
+
+  $modal.modal( {
+    keyboard: false
+  } );
+
+  $modal.find( '.modal-title' ).html( WARNING );
+  $modal.find( '.modal-body' ).html( err.error ?? err );
+  $modal.modal( 'show' );
+
+  console.error( err.error ?? err );
+}
+
+/**
+ * Get a traduction for an error coming from server
+ * @param {Object<{
+ *  responseJSON: Object<{
+ *      error:string,
+ *      error_code:string,
+ *      replace:Object
+ *    }>
+ * }>} err
+ */
+function getErrorTraduction( err ) {
+  if ( typeof err == 'string' ) {
+    return {
+      error: err
+    };
+  }
+
+  if ( err.responseJSON ) {
+    err = err.responseJSON;
+    let {
+      error,
+      error_code,
+      replace
+    } = err;
+
+    err.error = ERROR_CODES[ error_code ] ?? error;
+
+    // If there's information to replace in the string do it
+    if ( replace ) {
+      Object.keys( replace ).forEach( key => {
+        err.error = err.error.replace( key, replace[ key ] );
+      } );
+    }
+
+    return err;
+  }
+
+  return err;
+}

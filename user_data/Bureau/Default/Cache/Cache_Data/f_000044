@@ -1,0 +1,1065 @@
+/**
+ * Gallery class to manage all the files ( images and PDF ) used in card and audits
+ */
+var Gallery = class {
+  static pickClassContainer = '.checkPhotosContainer';
+
+  static blockNewPhoto = `<div class="gralImagecont">
+								<div class="photoContainer photoContainerAdd">
+									<div class="photo-image-container">
+										<i class="fas fa-camera photo-icon">+</i>
+									</div>
+									</div>
+							</div>`;
+
+  static limitTotalPhotosContainer = 3;
+  static uploadIcon = formatKamishibaiUrl( '/ressources/images/upload.png' );
+  static acceptedFilesCards = [ 'image/jpeg', 'image/png', 'application/pdf' ];
+  static acceptedFilesAudits = [ 'image/jpeg', 'image/png' ];
+
+  modal;
+  currentTab;
+  addToGalleryInputContainer;
+
+  // Loader element to show while an action is loading
+  loader = $( `<div id="loadCustom">
+                  <div class="loader">
+                  </div>
+                  <div class="loaderImg">
+                    <div class="imgLoaderContainer">
+                        <img class="img-logo" src="/ressources/images/K_kami_blue.png" alt="" width="50px" height="50px">
+                    </div>
+                  </div>
+                </div>` );
+
+  tabCardPhotos = {
+    tab: null,
+    section: null,
+    content: null,
+    files: [],
+    deletebtn: null,
+    selectedElements: [],
+    selectAll: null,
+    search: null,
+    exportbtn: null
+  };
+
+  tabPDF = {
+    tab: null,
+    section: null,
+    content: null,
+    files: [],
+    deletebtn: null,
+    selectedElements: [],
+    selectAll: null,
+    search: null,
+    exportbtn: null
+  };
+
+  tabAuditPhotos = {
+    tab: null,
+    section: null,
+    content: null,
+    files: [],
+    deletebtn: null,
+    selectedElements: [],
+    selectAll: null,
+    search: null,
+    exportbtn: null
+  };
+
+  constructor() {
+    this.currentTab = null;
+    this.modal = $( '#modal-bac-a-sable-confirm' );
+
+    // Gallery tabs
+    this.tabCardPhotos = {
+      tab: $( this.modal ).find( '#photosSaved-tab' ),
+      content: $( this.modal ).find( '#photosSaved .savedRessources' ),
+      files: [],
+      deletebtn: $( this.modal ).find( '#delete-photosSaved-btn' ).addClass( 'disabled-delete' ),
+      selectedElements: [],
+      selectAll: $( this.modal ).find( '#photosSaved .checkAllFiles' ),
+      search: $( this.modal ).find( '#search-photosSaved' ),
+      exportbtn: $( this.modal ).find( '#btnImagesExport' )
+    };
+
+    this.tabPDF = {
+      tab: $( this.modal ).find( '#filesSavec-tab' ),
+      content: $( this.modal ).find( '#filesSavec .savedRessources' ),
+      files: [],
+      deletebtn: $( this.modal ).find( '#delete-filesSavec-btn' ).addClass( 'disabled-delete' ),
+      selectedElements: [],
+      selectAll: $( this.modal ).find( '#filesSavec .checkAllFiles' ),
+      search: $( this.modal ).find( '#search-filesSavec' ),
+      exportbtn: $( this.modal ).find( '#btnFilesExport' )
+    };
+
+    this.tabAuditPhotos = {
+      tab: $( this.modal ).find( '#auditsImages-tab' ),
+      content: $( this.modal ).find( '#auditsImages .savedRessources' ),
+      files: [],
+      deletebtn: $( this.modal ).find( '#delete-auditsImages-btn' ).addClass( 'disabled-delete' ),
+      selectedElements: [],
+      selectAll: $( this.modal ).find( '#auditsImages .checkAllFiles' ),
+      search: $( this.modal ).find( '#search-auditsImages' ),
+      exportbtn: $( this.modal ).find( '#btnAuditsExport' )
+    };
+
+    // Init tabCardPhotos by default
+    this.currentTab = this.tabCardPhotos;
+  }
+
+  async init( external = false) {
+    const gallery = this;
+
+    gallery.modal
+      .find( '#tabPhotos a' )
+      .off( 'click' )
+      .on( 'click', e => $( e.currentTarget ).tab( 'show' ) );
+
+    gallery.modal
+      .find( '#photosSaved-tab' )
+      .css( { 'background-color': 'rgba(0, 170, 196, 0.5)' } );
+
+    let changeColor = function() {
+      gallery.modal.find( '#tabPhotos .nav-item a' ).css( { 'background-color': 'white' } );
+      $( this ).css( { 'background-color': 'rgba(0, 170, 196, 0.5)' } );
+    };
+
+    gallery.tabCardPhotos.tab.on( 'click', e => changeColor.call( e.currentTarget ) );
+    gallery.tabPDF.tab.on( 'click', e => changeColor.call( e.currentTarget ) );
+    gallery.tabAuditPhotos.tab.on( 'click', e => changeColor.call( e.currentTarget ) );
+
+    gallery.tabCardPhotos.tab.parent().show();
+    gallery.tabAuditPhotos.tab.parent().show();
+    gallery.tabPDF.tab.parent().show();
+
+    gallery.#handlerInitialPosition();
+
+    $( gallery.modal ).off( 'click' );
+    $( gallery.modal ).modal( { keyboard: true } );
+    $( gallery.modal ).find( '.modal-content button.close' ).on( 'click', () => gallery.close() );
+
+    // Click tabs listeners
+    if ( !external ) {
+      $( gallery.tabCardPhotos.tab )
+        .on( 'click', async () => {
+          gallery.currentTab = gallery.tabCardPhotos;
+          await gallery.#chargeGallery();
+          gallery.#showCurrentTab();
+        } );
+
+      $( gallery.tabPDF.tab ).on( 'click', async () => {
+        gallery.currentTab = gallery.tabPDF;
+        await gallery.#chargeGallery();
+        gallery.#showCurrentTab();
+      } );
+
+      $( gallery.tabAuditPhotos.tab ).on( 'click', async () => {
+        gallery.currentTab = gallery.tabAuditPhotos;
+        await gallery.#chargeGallery();
+        gallery.#showCurrentTab();
+      } );
+    }
+
+    // Charge content
+    await gallery.#chargeGallery();
+    gallery.createNewInputAddForGallery();
+
+    // Init tabCardPhotos by default
+    $( gallery.tabCardPhotos.tab ).trigger( 'click' );
+  }
+
+  #exportImages() {
+    const gallery = this;
+    gallery.currentTab.exportbtn.addClass( 'loading' );
+    gallery.currentTab.exportbtn.attr( 'disabled', true );
+
+    FileGallery.export( gallery.currentTab.selectedElements )
+      .then( () => {
+        gallery.currentTab.exportbtn.removeClass( 'loading' );
+        gallery.currentTab.exportbtn.attr( 'disabled', false );
+      } )
+      .catch( e => console.log( 'Error !', e ) );
+  }
+
+  /**
+   * Generate file element container for visualisation
+   * @param {FileGallery} file
+   * @returns
+   */
+  generateVisualFileContainer( file ) {
+    const gallery = this;
+    const container = $( Gallery.blockNewPhoto );
+    gallery.setFileInContainer( container, file, false );
+    return container;
+  }
+
+  /**
+   * Creates new element to add a new file in the gallery
+   */
+  createNewInputAddForGallery() {
+    const gallery = this;
+    const blockNewPhotoObj = $( Gallery.blockNewPhoto ).addClass( 'newInput' );
+
+    $( blockNewPhotoObj ).find( '.photoContainer' ).css( { 'margin': '0 auto' } );
+
+    const inputFile = $( '<input type="file" name="newPhoto" id="inputModalNewPhotoGallery" accept="image/jpeg, image/png, application/pdf" style="display: none;">' );
+    $( blockNewPhotoObj ).on( 'click', () => $( inputFile ).trigger( 'click' ) );
+
+    let inputUpload = $( '<input class="upload_img" name="img" type="hidden" value="">' );
+    $( gallery.modal ).find( '.newPhoto' ).html( [ blockNewPhotoObj, inputFile, inputUpload ] );
+
+    gallery.addToGalleryInputContainer = blockNewPhotoObj;
+
+    $( inputFile ).on( 'change', async function( e ) {
+      let $thisInput = this;
+
+      if ( !Gallery.isAcceptedType( $thisInput ) ) {
+        $( $thisInput ).val( '' );
+        return;
+      }
+
+      gallery.#addFile( $thisInput );
+    } );
+  }
+
+  /**
+   * Creates an element for all files given
+   * @param {FileGallery[]} nameFiles
+   */
+  createFilesContent( files ) {
+    const gallery = this;
+    gallery.currentTab.content.html( '' );
+
+    files.forEach( file => {
+      const blockNewPhotoObj = $( Gallery.blockNewPhoto ); // Create new element
+      gallery.currentTab.content.append( blockNewPhotoObj );
+
+      // Set the image in container
+      gallery.setFileInContainer( blockNewPhotoObj, file, true, false );
+
+      // Choose the photo
+      // If theres a container to pick a photo, then add a click listener
+      if ( gallery.actualPhotoToChange ) {
+        $( blockNewPhotoObj )
+          .find( '.photoContainer ' )
+          .on( 'click', () => gallery.#pickFile( file ) );
+      }
+
+    } );
+  }
+
+  /**
+   * Set the image in its container
+   * @param {jQuery} container
+   * @param {FileGallery} file
+   * @param {boolean} canDelete : True if the element has the option to be delete, otherwise it could be removed from the container selection
+   * @param {boolean} visualmode : True if the element has no action options, open modal image when click in the element
+   */
+  setFileInContainer( container, file, canDelete, visualmode = true ) {
+    const gallery = this;
+    container.find( '.tooltip' ).remove();
+    container.find( '.actionsChecksContainer' ).remove();
+    container.find( '.filenameTextContainer' ).remove();
+
+    const tooltip = $( `<div class="tooltip" style="position : absolute; left:0">
+        <span class="tooltiptext" style="margin-left: 0px; margin-top: 0px; ">
+          <b/>
+          <br/><br/>
+          <b/>
+        </span>
+      </div>`
+    );
+
+    $( tooltip.find( 'b' )[ 0 ] ).text( file.original_name );
+    $( tooltip.find( 'b' )[ 1 ] ).text( `${ADDED_THE} ${moment( file.added_date ).format( 'DD/MM/YYYY' )}` );
+
+    const filenameTextContainer = $( '<div class="filenameTextContainer"/>' ).text( file.getShortName() );
+    let imageContainer = $( '<div>' ).css( 'text-align', 'center' );
+    const $eyeIcon = $( '<i class="far fa-eye"></i>' );
+
+    let checked = gallery.currentTab.selectedElements.find( f => f._id == file._id ) ? 'checked' : '';
+    const $checkSelect = $( `<input class="form-check-input checkFile" type="checkbox" name="selectFile" ${checked}>` );
+
+    const actionsContainer = $( '<div class="actionsChecksContainer"/>' );
+    const $trashIcon = $( '<i class="fas fa-trash-alt"></i>' );
+    const $pencilIcon = $( '<i class="fas fa-pencil-alt"></i>' );
+
+    let style = ( file.isPdf() ) ? 'width: 50px;  margin: 0 auto; margin: 0 auto;' : '';
+    let classPDF = ( file.isPdf() ) ? 'pdfGallery' : '';
+
+    const objAttr = {
+      alt: 'checkpoint picture',
+      src: file.getSrcMin(),
+      class: `hoverImage generated imageGallery ${classPDF}`,
+      value: file.filename,
+      style: `${style}`
+    };
+
+    $( container ).removeClass( 'photoContainerAdd' );
+
+    let imgObj = $( '<img>' ).attr( objAttr );
+
+    container.children().addClass( 'checkWithImage' );
+    container.children().removeClass( 'photoContainerAdd' );
+
+    container.prepend( tooltip );
+    container.append( filenameTextContainer );
+    imageContainer.append( imgObj );
+    container.find( '.photoContainer' ).html( imageContainer );
+
+    if ( file.isPdf() ) {
+      imageContainer = $( '<div>' ).css( { 'height': '200px', 'width': '100%', 'text-align': 'center', 'display': 'flex' } );
+      imgObj.css( { 'width': '50%', 'height': 'fit-content', 'align-self': 'center' } );
+    }
+
+    let tooltipSpan = tooltip.find( 'span' );
+    tooltipSpan.css( 'width', '200px' );
+
+    container.on( 'mouseover', () => tooltipSpan.css( 'visibility', 'visible' ) ); // Show tooltip
+    container.on( 'mouseleave', () => tooltipSpan.css( 'visibility', 'hidden' ) ); // Hide tooltip
+
+    if ( visualmode ) {
+      container.on( 'click', file.show.bind( file ) );
+    } else {
+      container.append( actionsContainer );
+      $( actionsContainer ).append( $eyeIcon );
+
+      if ( admn ) {
+        if ( canDelete ) {
+          $( actionsContainer ).append( $pencilIcon );
+          $pencilIcon.on( 'click', function() {
+            gallery.#modifyFile( file );
+          } );
+        }
+
+
+        // Admin => Delete (trash or remove icon)
+        $( actionsContainer ).append( $trashIcon );
+        $trashIcon.on( 'click', function() {
+          if ( canDelete ) {
+            gallery.#tryDeleteFileFromGallery( this, file );
+          } else {
+            gallery.#removeElementSelection( this, file );
+          }
+        } );
+
+        // Admin => delete (checkbox)
+        if ( canDelete ) {
+          $checkSelect
+            .css( { 'margin': '0', 'border': '1px solid black', 'cursor': 'pointer' } )
+            .on( 'click', e => {
+              const element = $( e.currentTarget );
+              const isChecked = element.is( ':checked' );
+
+              if ( isChecked ) {
+                gallery.currentTab.selectedElements.push( file );
+              } else {
+                gallery.currentTab.selectedElements = gallery.currentTab.selectedElements.filter( f => f.filename != file.filename ); // Remove file from selection
+              }
+
+              gallery.#checkButtonsActionState();
+            } );
+          $( actionsContainer ).prepend( $checkSelect );
+        }
+      }
+
+      // Show file
+      $( $eyeIcon ).on( 'click', file.show.bind( file ) );
+
+    }
+  }
+
+  #checkButtonsActionState() {
+    const gallery = this;
+
+    if ( gallery.currentTab.selectedElements.length > 0 ) {
+      gallery.currentTab.deletebtn.removeClass( 'disabled-delete' );
+      gallery.currentTab.deletebtn.attr( 'disabled', false );
+
+      gallery.currentTab.exportbtn.removeClass( 'disabled-export' );
+      gallery.currentTab.exportbtn.attr( 'disabled', false );
+
+      if ( gallery.currentTab.content.find( '.gralImagecont' ).length == gallery.currentTab.selectedElements.length ) {
+        gallery.currentTab.selectAll.prop( 'checked', true ); // Activate check all
+      } else {
+        gallery.currentTab.selectAll.prop( 'checked', false ); // Desactivate check all
+      }
+
+    } else {
+      gallery.currentTab.deletebtn.addClass( 'disabled-delete' );
+      gallery.currentTab.deletebtn.attr( 'disabled', true );
+
+      gallery.currentTab.exportbtn.addClass( 'disabled-export' );
+      gallery.currentTab.exportbtn.attr( 'disabled', true );
+
+      gallery.currentTab.selectAll.prop( 'checked', false );
+    }
+  }
+
+  /**
+   * Allows to generate a new element for a file
+   * and allows it to pick a new image from the gallery
+   * @param {FileGallery} file
+   * @param {*} $container
+  */
+  generateChooseFileInput( file, $container ) {
+    const gallery = this;
+    // If we're going to choose any image, hide the audit tab
+    gallery.tabAuditPhotos.tab.parent().hide();
+
+    file = new FileGallery( file );
+
+    let photoCont = $( `<div class="photoContainer photoContainerAdd">
+                              <div class="photo-image-container">
+                                  <i class="fas fa-camera photo-icon">+</i>
+                              </div>
+                          </div>` );
+    let $photoContainer = $( '<div class="gralImagecont">' );
+
+    $( $photoContainer ).append( photoCont );
+    $( $container ).append( $photoContainer );
+
+    photoCont
+      .on( 'click', e => gallery.#initPickFile( $( e.currentTarget ) ) );
+
+    gallery.setFileInContainer( $photoContainer, file, false, false );
+  }
+
+  /**
+   * Allows to generate a new empty element
+   * and allow it to pick a new image from the gallery
+   * @param {jQuery} container
+   */
+  generateEmptyChooseFileInput( container ) {
+    const gallery = this;
+
+    // If we're going to choose any image, hide the audit tab
+    gallery.tabAuditPhotos.tab.parent().hide();
+
+    var options = 	{
+      type: 'file',
+      accept: Gallery.acceptedFilesCards.join( ', ' ),
+      name: 'picture',
+    };
+
+    let gralContainerPhoto = $( '<div class="gralImagecont">' );
+    let $addPictureCheckPoints = $( `<div class="photoContainer photoContainerAdd">
+                      <div class="photo-image-container">
+                      <i class="fas fa-camera photo-icon">+</i>
+                      </div>
+                    </div>` );
+    gralContainerPhoto.append( $addPictureCheckPoints );
+
+    let inputFile = $( '<input hidden>' ).attr( options );
+    gralContainerPhoto.append( inputFile );
+
+    let uploadImage = $( '<input class="upload_img" name="img" type="hidden" value="">' );
+    gralContainerPhoto.append( uploadImage );
+
+    // Adding all to contiainer
+    $( container ).append( gralContainerPhoto );
+
+    $addPictureCheckPoints
+      .on( 'click', e => gallery.#initPickFile( $( e.currentTarget ) ) );
+
+    gallery.#verifyLimitImages();
+  }
+
+  open() {
+    const gallery = this;
+    gallery.tabCardPhotos.tab.trigger( 'click' );
+    $( gallery.modal ).modal( 'show' );
+    $( gallery.modal ).find( '.modal-dialog' ).removeClass( 'modal-right' );
+    $( gallery.modal ).find( '.modal-dialog' ).addClass( 'transLeft' );
+  }
+
+  close() {
+    const gallery = this;
+
+    $( gallery.modal ).find( '.modal-dialog' ).removeClass( 'transLeft' );
+    $( gallery.modal ).find( '.modal-dialog' ).removeClass( 'transLeftZoom' );
+    $( gallery.modal ).find( '.modal-dialog' ).removeClass( 'modal-zoom' );
+    gallery.#handlerInitialPosition();
+    $( gallery.modal ).find( '.modal-dialog' ).addClass( 'modal-right' );
+    gallery.currentTab = gallery.tabCardPhotos;
+
+    // Hide
+    setTimeout( () => $( gallery.modal ).modal( 'hide' ), 800 );
+  }
+
+  /**
+   * Get the file by filename in the current gallery
+   * @param {string} filename
+   * @returns {FileGallery|null}
+   */
+  getFileByFilenameForCards( filename ) {
+    const gallery = this;
+    let all = [ ...gallery.tabCardPhotos.files,
+      ...gallery.tabPDF.files  ];
+    return all.find( f => f.filename == filename );
+  }
+
+  getFileByFilenameForAudits( filename ) {
+    const gallery = this;
+    let all = gallery.tabAuditPhotos.files;
+
+    return all.find( f => f.filename == filename );
+  }
+
+  /**
+   *
+   * @param {FileGallery} file
+   */
+  #modifyFile( file ) {
+    const gallery = this;
+    let $modalAdd = $( '#modal-add-som-confirm' );
+
+    let $modalFooter = $( $modalAdd ).find( '.modal-footer' );
+    let btnConfirmAdd = $( `<button type="button" class="button btnBlue confirm">${OK}</button>` );
+    $( $modalFooter ).html( btnConfirmAdd );
+
+    let inputVal = file ? file.getOriginalNameWithoutExt() : '';
+
+    let inputName = $( `<div style="display: inline-flex;" class="col-12" >
+                <div class="col-12 inputFormContainer">
+                    <div class="input-group col-12">
+                      <div class="input-group-prepend">
+                        <span class="input-group-text input-left" for="name">
+                          ${NAME}
+                        </span>
+                      </div>
+                      <div class="col-7 col-md-6">
+                        <input value="${inputVal}" type="text" class="form-control input-right"  name="name" required aria-describedby="inputGroupPrepend" >
+                        <p class="error"></p>
+                      </div>
+                    </div>
+                  </div>
+                </div>` );
+    let $modalBody = $( $modalAdd ).find( '.modal-body' );
+
+    $( $modalBody ).html( '' );
+    let txtTitle = UPDATE_FILENAME;
+
+    $( $modalAdd ).find( '.modal-title' ).html( txtTitle );
+    $( $modalBody ).html( inputName );
+    $( $modalAdd ).modal( 'show' );
+
+    $( btnConfirmAdd ).on( 'click', async function() {
+
+      let newName = $( inputName ).find( 'input' ).val();
+      if ( newName.length <= 0 ) {
+        $( inputName ).find( '.error' ).remove();
+        $( inputName ).find( 'input' ).after( $( `<p class="error">${PLEASE_WRITE_NAME}</p>` ) );
+        return;
+      }
+
+      try {
+        await file.modify( newName );
+        await gallery.#chargeGallery();
+        gallery.currentTab.tab.click(); // Regenerate content
+        closeModal( $modalAdd );
+
+      } catch ( err ) {
+        let error = $( $modalBody ).find( '.error' );
+        error.html( err.error ?? err );
+      }
+    } );
+
+  }
+
+  /**
+   * Add a file to the gallery from a given input
+   * @returns
+   */
+  async #addFile( $thisInput ) {
+    const gallery = this;
+    const file = FileGallery.createFileObjFromInput( $thisInput );
+    file.original_name = file.original_name.replaceAll('<','_')
+                                           .replaceAll('>','_');
+
+    try {
+      file.dependency = FileGallery.DEPENDENCIES.card;
+      await file.save();
+      gallery.currentTab = file.isPdf() ? gallery.tabPDF : gallery.tabCardPhotos;
+      await gallery.#chargeGallery();
+
+      if ( gallery.actualPhotoToChange ) {
+        gallery.#pickFile( file );
+      } else {
+        gallery.currentTab.tab.click(); // Regenerate content
+      }
+
+    } catch ( err ) {
+      console.log( 'Error', err );
+    }
+
+    $( $thisInput ).val( '' );
+  }
+
+  /**
+   * Charge all the files for gallery
+   */
+  async #chargeGallery() {
+    const gallery = this;
+
+    // Clear content
+    gallery.tabCardPhotos.content.html( '' );
+    gallery.tabPDF.content.html( '' );
+
+    // Get files and create content
+    try {
+      let { images, pdfs } = await FileGallery.allFilesKamishibaiPicture();
+      let auditsImages = await FileGallery.allFilesAudits();
+      gallery.tabCardPhotos.files = images;
+      gallery.tabPDF.files = pdfs;
+      gallery.tabAuditPhotos.files = auditsImages;
+      $( gallery.tabCardPhotos.tab ).html( `${PICTURES} (${gallery.tabCardPhotos.files.length})` );
+      $( gallery.tabPDF.tab ).html( `${FILES} (${gallery.tabPDF.files.length})` );
+      $( gallery.tabAuditPhotos.tab ).html( `${PICTURES_AUDITS} (${gallery.tabAuditPhotos.files.length})` );
+    } catch ( e ) {
+      console.log( 'Error', e );
+    }
+  }
+
+  /**
+   * Pick a file from the gallery from a target input
+   * @param {JQuery} target : Target where it will be set the element once picked
+   */
+  async #initPickFile( target ) {
+    const gallery = this;
+    gallery.tabAuditPhotos.tab.parent().hide();
+    gallery.actualPhotoToChange = $( target );
+    gallery.open();
+  }
+
+  /**
+   * Pick a file to set in the current container waiting for a file
+   * @param {FileGallery} file
+   */
+  #pickFile( file ) {
+    const gallery = this;
+
+    gallery.setFileInContainer( gallery.actualPhotoToChange.parent( '.gralImagecont' ), file, false, false );
+
+    // Generate a new empty
+    let checkAdd = $( gallery.actualPhotoToChange ).closest( Gallery.pickClassContainer ).find( '.photoContainerAdd' );
+    if ( checkAdd.length <= 0 ) {
+      gallery.generateEmptyChooseFileInput( $( gallery.actualPhotoToChange ).closest( Gallery.pickClassContainer ) );
+    }
+    gallery.close();
+  }
+
+  /**
+   * Remove element in the card section
+   * @param {jQuery} $trash Element clicked
+   * @param {FileGallery} file
+   */
+  async #removeElementSelection( $trash, file ) {
+    const gallery = this;
+
+    let txt = ( file.isPdf() ) ? `<p>${ARE_YOU_SURE_YOU_WANT_TO_REMOVE_THIS_FILE}</p>` : `<p>${ARE_YOU_SURE_YOU_WANT_TO_REMOVE_THIS_PHOTO}</p>`;
+    $( '#remove-photo-confirm-content' ).html( txt );
+
+    $( '#modal-remove-photo-confirm .modal-footer' ).html( '' );
+    let $btnOk = $( `<button type="button" class="button btnGray imageDelete">${REMOVE}</button>` );
+    $( '#modal-remove-photo-confirm .modal-footer' ).append( $btnOk );
+
+    $( $btnOk ).on( 'click', function() {
+      const $thisOkBtn = this;
+
+      $( $trash ).parent().parent().remove();
+      gallery.#verifyLimitImages( $( $thisOkBtn ).closest( Gallery.pickClassContainer ) );
+      closeModal( $thisOkBtn );
+    } );
+
+    $( '#modal-remove-photo-confirm' ).modal( 'show' );
+  }
+
+  /**
+   * Check if the file is being used or not
+   * @param {jQuery} $thisTrash Element clicked
+   * @param {FileGallery} file
+   * @returns
+   */
+  async #tryDeleteFileFromGallery( $thisTrash, file ) {
+    const gallery = this;
+
+    $( '#modal-delete-som-confirm .modal-body' ).html( '' );
+    $( '#modal-delete-som-confirm .modal-dialog' ).css( { 'max-width': '30%', 'transition': '0.5s' } );
+
+    let fileUsedBy = ( file.dependency == FileGallery.DEPENDENCIES.card ) ? await file.cardsUsingFile() : [];
+
+    if ( fileUsedBy.length > 0 ) {
+      gallery.#preventMessageFilesUsedBy( [ { cardsUsingFile: fileUsedBy, file: file } ] );
+    } else {
+      gallery.#askConfirmationBeforeDelete( 1 )
+        .then(  async function() {
+          await file.delete();
+          // Remove input (instead of charging the whole current tab)
+          $( $thisTrash ).parent().parent().remove();
+
+          gallery.#resetFileSelection();
+          await gallery.#chargeGallery();
+          await gallery.#showCurrentTab();
+        } );
+    }
+  }
+
+  /**
+   * Cannot delete file because is being used by some cards, show message
+   * @param { {
+   *            file:FileGallery,
+   *            cardsUsingFile:[
+   *                {_id:string, title:string, taskmanager:{_id:string, name:string}}
+   *           ]
+   *          }[]
+   *         } filesInformation
+   * @returns
+   */
+  #preventMessageFilesUsedBy( filesInformation ) {
+    const gallery = this;
+    const modalConfirm = $( '#modal-delete-som-confirm' );
+    const containerBody = modalConfirm.find( '.modal-body' );
+
+    containerBody.html( '' );
+
+    filesInformation.forEach( info => {
+      const { cardsUsingFile, file } = info;
+      const isUsedByOne = ( cardsUsingFile.length == 1 );
+      let containerInfoFile = $( '<div>' );
+
+      let txt = `<b>${file.original_name} :</b> `;
+      if ( file.isPdf() ) {
+        txt += ( isUsedByOne ) ? FILE_IN_USE_SING.replace( '{0}', 1 ) : FILE_IN_USE.replace( '{0}', cardsUsingFile.length );
+      } else {
+        txt += ( isUsedByOne ) ? IMAGE_IN_USE_SING.replace( '{0}', 1 ) : IMAGE_IN_USE.replace( '{0}', cardsUsingFile.length );
+      }
+
+      let buttonDetails = $( '<input type="button" value="v">' ).css( { 'border': '1px solid gray', 'border-radius': '50%', 'font-size': '10px', 'margin-right': '5px' } );
+      let spanDetails = $( `<span>${DETAILS}</span>` ).css( { 'font-size': '14px' } );
+
+      const containerDetails = $( '<div/>' );
+      $( containerInfoFile ).append( [ txt, '<br/><br/><br/>', buttonDetails, spanDetails, containerDetails, '<br/><br/>' ] );
+
+      let handlerDetailsHide = function() {
+        $( buttonDetails ).off( 'click', handlerDetailsHide );
+        $( buttonDetails ).val( 'v' );
+        modalConfirm.find( '.modal-dialog' ).css( { 'max-width': '30%', 'transition': '0.5s' } );
+        $( containerBody ).find( '.containerDetailstable' ).remove();
+        $( buttonDetails ).on( 'click', handlerDetails );
+      };
+
+      let handlerDetails = function() {
+        $( buttonDetails ).off( 'click', handlerDetails );
+        modalConfirm.find( '.modal-dialog' ).css( { 'max-width': '70%', 'transition': '0.5s' } );
+        $( containerBody ).find( '.containerDetailstable' ).remove();
+
+        let containerTable = $( '<div class="containerDetailstable">' );
+        let $table = $( `<table>
+                <thead>
+                <tr>
+                <th>${CARD} ${TITLE}</th>
+                <th>${TABLE}</th>
+                </tr>
+                </thead>
+                <tbody>
+                  </tbody>
+                <table>` );
+
+        cardsUsingFile.forEach( card =>{
+          const { _id, title, taskmanager } = card;
+
+          let tr = $( '<tr class="cardTitleInfo">' ).css( { 'cursor': 'pointer' } );
+          let tdCard = $( `<td>${title}</td>` );
+
+          tr.on( 'click', function() {
+            window.open( formatKamishibaiUrl( `/cards?taskmanagerid=${taskmanager._id}&openID=${_id}` ) );
+          } );
+
+          $( tr ).append( tdCard );
+          $( tr ).append( `<td>${taskmanager.name}</td>` );
+          let tbody = $( $table ).find( 'tbody' );
+          $( tbody ).append( tr );
+        } );
+
+        $( containerTable ).append( [ '<br>', '<br>' ] );
+        $( containerTable ).append( $table );
+        $( containerDetails ).append( containerTable );
+        $( $table ).css( { 'width': '100%' } );
+        $( $table ).find( 'th' ).css( { 'font-weight': 'normal', 'font-size': '14px', 'width': '30%', 'padding': '15px' } );
+        $( $table ).find( 'td' ).css( { 'font-weight': 'normal', 'font-size': '14px', 'border-bottom': '1px solid black', 'padding': '15px' } );
+
+        $( buttonDetails ).val( '^' );
+        $( buttonDetails ).on( 'click', handlerDetailsHide );
+      };
+
+      $( buttonDetails ).on( 'click', handlerDetails );
+
+      containerBody.append( containerInfoFile );
+    } );
+
+    $( gallery.modal ).off( 'click' );
+
+    modalConfirm.find( '.modal-footer' ).html( '' );
+    modalConfirm.modal( 'show' );
+  }
+
+  /**
+   * Show confirmation message before delete a file
+   * @param {number} files_tot : Total of files to delete
+   */
+  #askConfirmationBeforeDelete( files_tot ) {
+    const gallery = this;
+
+    let txt = ( gallery.currentTab == gallery.tabPDF ) ? ARE_YOU_SURE_YOU_WANT_TO_DELETE_THIS_FILE : ARE_YOU_SURE_YOU_WANT_TO_DELETE_THIS_IMAGE;
+    txt = txt.replace( '{0}', files_tot );
+
+    $( '#modal-delete-som-confirm .modal-body' ).html( txt );
+
+    let btnDeltePhoto = $( `<input type="button" class="button btnRed imageDelete" value="${DELETE}">` );
+    $( '#modal-delete-som-confirm .modal-footer' ).html( btnDeltePhoto );
+    $( '#modal-delete-som-confirm' ).modal( 'show' );
+
+    return new Promise( resolve => {
+      $( btnDeltePhoto ).on( 'click', async function() {
+        const $thisDelPhoto = this;
+        resolve();
+        closeModal( $thisDelPhoto );
+        $( '#modal-delete-som-confirm' ).modal( 'hide' );
+      } );
+    } );
+
+  }
+
+  /**
+   * Show the section with the corresponding files
+   */
+  async #showCurrentTab() {
+    const gallery = this;
+
+    if ( !admn ) {
+      gallery.currentTab.deletebtn.remove();
+      gallery.currentTab.exportbtn.remove();
+      gallery.currentTab.selectAll.parent().remove();
+    } else if ( gallery.currentTab.files.length == 0 ) {
+      gallery.currentTab.deletebtn.hide();
+      gallery.currentTab.exportbtn.hide();
+      gallery.currentTab.selectAll.parent().hide();
+    } else {
+      gallery.currentTab.exportbtn.show();
+      gallery.currentTab.deletebtn.show();
+      gallery.currentTab.selectAll.parent().show();
+    }
+
+    if ( gallery.currentTab.files.length == 0 ) {
+      gallery.currentTab.search.closest( '.searchFiles' ).hide();
+    } else {
+      gallery.currentTab.search.closest( '.searchFiles' ).show();
+    }
+
+    gallery.#resetFileSelection();
+    // Select files
+    gallery.currentTab.deletebtn
+      .off( 'click' )
+      .on( 'click', async e => {
+        const isActivated = !$( e.currentTarget ).hasClass( 'disabled-delete' );
+
+        if  ( isActivated ) {
+          gallery.#askConfirmationBeforeDelete( gallery.currentTab.selectedElements.length )
+            .then( gallery.#deleteCurrentSelectedFiles.bind( gallery ) );
+        }
+      } );
+
+    gallery.currentTab.selectAll
+      .off( 'click' )
+      .on( 'click', e => {
+        const element = $( e.currentTarget );
+        const isChecked = element.is( ':checked' );
+
+        if ( isChecked ) {
+          if ( gallery.currentTab.search.val().length == 0 ) {
+            gallery.currentTab.selectedElements = gallery.currentTab.files;
+          } else {
+            gallery.currentTab.selectedElements = gallery.currentTab.files.filter( file => {
+              return file.original_name.toLowerCase().includes( gallery.currentTab.search.val().toLowerCase() );
+            } );
+          }
+
+          gallery.currentTab.content.find( '.checkFile' )
+            .each( ( idx, e ) => $( e ).prop( 'checked', true ) );
+          gallery.#checkButtonsActionState();
+
+        } else {
+          gallery.#resetFileSelection();
+        }
+      } );
+
+    $( gallery.currentTab.exportbtn )
+      .off( 'click' )
+      .on( 'click', gallery.#exportImages.bind( gallery ) );
+
+    if ( gallery.currentTab == gallery.tabAuditPhotos ) {
+      gallery.addToGalleryInputContainer.css( 'visibility', 'hidden' );
+    } else {
+      gallery.addToGalleryInputContainer.css( 'visibility', 'visible' );
+    }
+
+    gallery.currentTab.search.on( 'mouseup', async function() {
+      let valueBefore = $( this ).val();
+      setTimeout( () => {
+        if ( $( this ).val() == '' && valueBefore != '' ) {
+          gallery.createFilesContent( gallery.currentTab.files );
+          gallery.#resetFileSelection( gallery.currentTab.files );
+        }
+      }, 200 );
+    } );
+
+    gallery.currentTab.search.on( 'keyup', async function() {
+      if ( $( this ).val() == '' ) {
+        gallery.createFilesContent( gallery.currentTab.files );
+        gallery.#resetFileSelection( gallery.currentTab.files );
+      }
+
+      let files = gallery.currentTab.files.filter( file => {
+        return file.original_name.toLowerCase().includes( $( this ).val().toLowerCase() );
+      } );
+
+      gallery.createFilesContent( files );
+      gallery.#filterSelectedFiles( files );
+
+      if ( gallery.currentTab.content.find( '.gralImagecont' ).length == gallery.currentTab.selectedElements.length && gallery.currentTab.selectedElements.length > 0 ) {
+        gallery.currentTab.selectAll.prop( 'checked', true ); // Activate check all
+      } else {
+        gallery.currentTab.selectAll.prop( 'checked', false ); // Desactivate check all
+      }
+
+    } );
+
+    gallery.createFilesContent( gallery.currentTab.files );
+    gallery.#filterSelectedFiles( gallery.currentTab.files );
+  }
+
+  /**
+   * Filter selected files based on files given
+   * @param {FileGallery[]} files
+   */
+  #filterSelectedFiles( files ) {
+    const gallery = this;
+
+    gallery.currentTab.selectedElements = gallery.currentTab.selectedElements.filter( f => {
+      return files.find( file => file._id == f._id );
+    } );
+
+    if ( gallery.currentTab.selectedElements.length == 0 ) {
+      gallery.#resetFileSelection();
+    }
+  }
+
+  #handlerZoom() {
+    const gallery = this;
+
+    gallery.loader.find( '.loader' )
+      .css( {
+        'left': '47%',
+        'top': '35%'
+      } );
+
+    $( gallery.modal ).find( '.modal-dialog' )
+      .removeClass( 'modal-initial' )
+      .addClass( 'modal-zoom' )
+      .addClass( 'transLeftZoom' );
+
+    $( gallery.modal ).find( '#btnSandBowZoom' )
+      .val( '>' )
+      .off( 'click' )
+      .on( 'click', gallery.#handlerInitialPosition.bind( gallery ) );
+  }
+
+  #handlerInitialPosition() {
+    const gallery = this;
+
+    gallery.loader.find( '.loader' )
+      .css( {
+        'left': '43%',
+        'top': '35%'
+      } );
+
+    $( gallery.modal ).find( '.modal-dialog' )
+      .removeClass( 'modal-zoom' )
+      .addClass( 'modal-initial' )
+      .removeClass( 'transLeftZoom' );
+
+    $( '#btnSandBowZoom' )
+      .val( '<' )
+      .off( 'click' )
+      .on( 'click', gallery.#handlerZoom.bind( gallery ) );
+  }
+
+  // Verify limit of elements in container
+  #verifyLimitImages( container ) {
+    $( container ).css( {
+      'justify-content': ( $( container ).children().length >= Gallery.limitTotalPhotosContainer ) ? 'flex-start' : 'center'
+    } );
+  }
+
+  #resetFileSelection() {
+    const gallery = this;
+    gallery.currentTab.selectedElements = [];
+    /*gallery.currentTab.deletebtn.addClass( 'disabled-delete' );
+    gallery.currentTab.selectAll.prop( 'checked', false );*/
+
+    gallery.currentTab.content.find( '.checkFile' )
+      .each( ( idx, e ) => $( e ).prop( 'checked', false ) );
+    //gallery.currentTab.deletebtn.addClass( 'disabled-delete' );
+    gallery.#checkButtonsActionState();
+  }
+
+  async #deleteCurrentSelectedFiles() {
+    const gallery = this;
+    if ( gallery.currentTab.selectedElements.length == 0 ) return;
+
+    const files = gallery.currentTab.selectedElements;
+    gallery.currentTab.content.html( '' );
+    gallery.currentTab.content.html( gallery.loader );
+    gallery.modal.css( 'cursor', 'progress' );
+
+    let usedFiles = [];
+    gallery.currentTab.deletebtn.hide();
+
+    for ( let i in  files ) {
+      const file = files[ i ];
+      let fileUsedBy = ( file.dependency == FileGallery.DEPENDENCIES.card ) ? await file.cardsUsingFile() : [];
+
+      if ( fileUsedBy.length > 0 ) {
+        usedFiles.push( { cardsUsingFile: fileUsedBy, file: file } );
+      } else {
+        await file.delete();
+      }
+    }
+
+    if ( usedFiles.length > 0 ) {
+      gallery.#preventMessageFilesUsedBy( usedFiles );
+    }
+
+    gallery.currentTab.search.val( '' );
+    gallery.#resetFileSelection();
+    await gallery.#chargeGallery();
+    await gallery.#showCurrentTab();
+    gallery.modal.css( 'cursor', 'auto' );
+  }
+
+  /**
+   * Verify if an input has a type accepted by the gallery
+   * @param {jQuery} input
+   */
+  static isAcceptedType( input )  {
+    let file = ( $( input ).prop( 'files' ) )[ 0 ];
+
+    if ( file ) {
+      return Gallery.acceptedFilesCards.includes( file.type );
+    }
+  }
+};
