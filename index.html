@@ -2,96 +2,94 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>FactoryCast Public Display</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FactoryCast Display</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: black; font-family: sans-serif; }
-        #viewer { 
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #000; overflow: hidden; }
+        #stage { 
             display: flex; 
             width: 100vw; 
             height: 100vh; 
-            transition: opacity 1s ease-in-out; 
-            opacity: 0; 
+            justify-content: center; 
+            align-items: center;
         }
-        .pane { 
-            flex: 1; 
-            /* REMPLISSAGE TOTAL SANS BANDES NOIRES */
-            background-size: 100% 100%; 
-            background-repeat: no-repeat; 
-            background-position: center; 
+        .screen-part {
+            flex: 1;
+            height: 100vh;
+            /* PROPORTIONNEL ET ETIRÉ AU MAXIMUM */
+            object-fit: contain; 
+            display: block;
         }
-        #progress-bar { position: fixed; bottom: 0; left: 0; height: 3px; background: #3dcd58; z-index: 100; }
-        #badge { 
-            position: fixed; 
-            bottom: 8px; 
-            right: 12px; 
-            color: rgba(255,255,255,0.2); 
-            font-size: 10px; 
-            letter-spacing: 1px; 
-            z-index: 101; 
-        }
+        #progress { position: fixed; bottom: 0; left: 0; height: 4px; background: #3dcd58; transition: width 0.1s linear; width: 0%; }
+        #info { position: fixed; bottom: 10px; right: 10px; color: rgba(255,255,255,0.3); font-family: monospace; font-size: 10px; }
     </style>
 </head>
 <body>
-    <div id="viewer"></div>
-    <div id="progress-bar"></div>
-    <div id="badge">LOADING...</div>
+    <div id="stage"></div>
+    <div id="progress"></div>
+    <div id="info">Initialisation...</div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const canal = params.get('canal') || 'point_1';
-        let sites = [], index = 0;
-        let mainTimer = null;
+        let sites = [], currentIndex = 0;
 
-        async function fetchConfig() {
+        async function loadConfig() {
             try {
-                const r = await fetch('config.json?v=' + Date.now());
-                const d = await r.json();
-                if (d.channels[canal]) {
-                    sites = d.channels[canal].sites;
-                    if (!mainTimer) startRotation();
+                // Anti-cache sur le JSON
+                const res = await fetch(`config.json?t=${Date.now()}`);
+                const data = await res.json();
+                if (data.channels[canal]) {
+                    sites = data.channels[canal].sites;
+                    render();
                 }
-            } catch (e) { setTimeout(fetchConfig, 5000); }
+            } catch (e) { 
+                document.getElementById('info').innerText = "Erreur config. Rechargement...";
+                setTimeout(loadConfig, 5000); 
+            }
         }
 
-        function startRotation() {
-            if (!sites.length) return;
-            const container = document.getElementById('viewer');
-            const pb = document.getElementById('progress-bar');
-            const badge = document.getElementById('badge');
-            const s = sites[index];
+        function render() {
+            if (sites.length === 0) return;
+            const site = sites[currentIndex];
+            const stage = document.getElementById('stage');
+            const info = document.getElementById('info');
+            const progress = document.getElementById('progress');
 
-            container.style.opacity = 0;
+            // Nettoyage
+            stage.innerHTML = '';
             
-            setTimeout(() => {
-                container.innerHTML = '';
-                // Création des splits (1, 2 ou 3 colonnes)
-                for(let p=0; p < s.split; p++) {
-                    const div = document.createElement('div');
-                    div.className = 'pane';
-                    div.style.backgroundImage = `url('docs/screens/${canal}_${index}_p${p}.png?v=${Date.now()}')`;
-                    container.appendChild(div);
-                }
+            // Création des images (une par split)
+            for (let i = 0; i < site.split; i++) {
+                const img = document.createElement('img');
+                // ANTI-CACHE AGRESSIF : ?v= timestamp
+                img.src = `docs/screens/${canal}_${currentIndex}_p${i}.png?v=${Date.now()}`;
+                img.className = 'screen-part';
+                stage.appendChild(img);
+            }
+
+            info.innerText = `Point: ${canal} | MàJ: ${site.last_update_str || 'N/A'}`;
+            
+            // Animation de la barre
+            let start = Date.now();
+            const duration = site.display_time * 1000;
+            
+            const timer = setInterval(() => {
+                let elapsed = Date.now() - start;
+                let percent = (elapsed / duration) * 100;
+                progress.style.width = percent + '%';
                 
-                badge.innerText = `MAJ: ${s.last_update_str || '--'}`;
-                container.style.opacity = 1;
-
-                // Reset et lancement de la barre de progression
-                pb.style.transition = 'none';
-                pb.style.width = '0%';
-                setTimeout(() => {
-                    pb.style.transition = `width ${s.display_time}s linear`;
-                    pb.style.width = '100%';
-                }, 100);
-
-                mainTimer = setTimeout(() => {
-                    index = (index + 1) % sites.length;
-                    if (index === 0) fetchConfig(); // Recharge la config à chaque cycle complet
-                    startRotation();
-                }, s.display_time * 1000);
-            }, 1000);
+                if (elapsed >= duration) {
+                    clearInterval(timer);
+                    currentIndex = (currentIndex + 1) % sites.length;
+                    // On recharge la config à chaque rotation complète pour voir les changements de l'UI
+                    if (currentIndex === 0) loadConfig(); 
+                    else render();
+                }
+            }, 100);
         }
 
-        fetchConfig();
+        loadConfig();
     </script>
 </body>
 </html>

@@ -1,26 +1,22 @@
 {
     "channels": {
-        "point_1": {
+        "bureau": {
             "sites": [
                 {
                     "url": "https://se.aubenas.kamishibaii.prod-eo.com/taskManager?taskmanagerid=685bb5cf068e9b000c53565a",
                     "zoom": 100,
                     "wait_time": 45,
-                    "display_time": 15,
+                    "display_time": 30,
                     "split": 2,
-                    "refresh_freq": 1,
-                    "last_update_time": 1771483140.24147,
-                    "last_update_str": "07:39:00"
+                    "refresh_freq": 60
                 },
                 {
-                    "url": "http://10.192.43.139:1880/ui/",
-                    "zoom": 45,
-                    "wait_time": 15,
-                    "display_time": 30,
+                    "url": "http://10.192.43.139:1880/ui",
+                    "zoom": 100,
+                    "wait_time": 10,
+                    "display_time": 10,
                     "split": 1,
-                    "refresh_freq": 1,
-                    "last_update_time": 1771483161.9849305,
-                    "last_update_str": "07:39:21"
+                    "refresh_freq": 20
                 }
             ]
         }
