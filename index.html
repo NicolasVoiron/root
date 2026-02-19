@@ -1,95 +1,71 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FactoryCast Display</title>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #000; overflow: hidden; }
-        #stage { 
-            display: flex; 
-            width: 100vw; 
+        #container { display: flex; width: 100vw; height: 100vh; justify-content: center; align-items: center; }
+        img { 
             height: 100vh; 
-            justify-content: center; 
-            align-items: center;
-        }
-        .screen-part {
-            flex: 1;
-            height: 100vh;
-            /* PROPORTIONNEL ET ETIRÉ AU MAXIMUM */
+            flex: 1; 
+            /* ÉTIRÉ MAIS PROPORTIONNEL */
             object-fit: contain; 
-            display: block;
+            background: black;
         }
-        #progress { position: fixed; bottom: 0; left: 0; height: 4px; background: #3dcd58; transition: width 0.1s linear; width: 0%; }
-        #info { position: fixed; bottom: 10px; right: 10px; color: rgba(255,255,255,0.3); font-family: monospace; font-size: 10px; }
+        #progress { position: fixed; bottom: 0; left: 0; height: 4px; background: #3dcd58; width: 0%; z-index: 10; }
+        #label { position: fixed; bottom: 10px; right: 10px; color: rgba(255,255,255,0.2); font-family: sans-serif; font-size: 10px; }
     </style>
 </head>
 <body>
-    <div id="stage"></div>
+    <div id="container"></div>
     <div id="progress"></div>
-    <div id="info">Initialisation...</div>
+    <div id="label">Chargement...</div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const canal = params.get('canal') || 'point_1';
-        let sites = [], currentIndex = 0;
+        let sites = [], idx = 0;
 
-        async function loadConfig() {
+        async function sync() {
             try {
-                // Anti-cache sur le JSON
-                const res = await fetch(`config.json?t=${Date.now()}`);
-                const data = await res.json();
-                if (data.channels[canal]) {
-                    sites = data.channels[canal].sites;
-                    render();
-                }
-            } catch (e) { 
-                document.getElementById('info').innerText = "Erreur config. Rechargement...";
-                setTimeout(loadConfig, 5000); 
-            }
+                const r = await fetch(`config.json?nocache=${Date.now()}`);
+                const d = await r.json();
+                sites = d.channels[canal].sites;
+                show();
+            } catch(e) { setTimeout(sync, 5000); }
         }
 
-        function render() {
-            if (sites.length === 0) return;
-            const site = sites[currentIndex];
-            const stage = document.getElementById('stage');
-            const info = document.getElementById('info');
-            const progress = document.getElementById('progress');
-
-            // Nettoyage
-            stage.innerHTML = '';
+        function show() {
+            if (!sites.length) return;
+            const s = sites[idx];
+            const div = document.getElementById('container');
+            const pb = document.getElementById('progress');
             
-            // Création des images (une par split)
-            for (let i = 0; i < site.split; i++) {
+            div.innerHTML = '';
+            for(let i=0; i<s.split; i++) {
                 const img = document.createElement('img');
-                // ANTI-CACHE AGRESSIF : ?v= timestamp
-                img.src = `docs/screens/${canal}_${currentIndex}_p${i}.png?v=${Date.now()}`;
-                img.className = 'screen-part';
-                stage.appendChild(img);
+                // ANTI-CACHE AGRESSIF
+                img.src = `docs/screens/${canal}_${idx}_p${i}.png?v=${Date.now()}`;
+                div.appendChild(img);
             }
 
-            info.innerText = `Point: ${canal} | MàJ: ${site.last_update_str || 'N/A'}`;
+            document.getElementById('label').innerText = `${canal.toUpperCase()} | MàJ: ${s.last_update_str || '--'}`;
             
-            // Animation de la barre
-            let start = Date.now();
-            const duration = site.display_time * 1000;
-            
-            const timer = setInterval(() => {
-                let elapsed = Date.now() - start;
-                let percent = (elapsed / duration) * 100;
-                progress.style.width = percent + '%';
-                
-                if (elapsed >= duration) {
-                    clearInterval(timer);
-                    currentIndex = (currentIndex + 1) % sites.length;
-                    // On recharge la config à chaque rotation complète pour voir les changements de l'UI
-                    if (currentIndex === 0) loadConfig(); 
-                    else render();
-                }
-            }, 100);
+            // Animation Progress Bar
+            pb.style.transition = 'none'; pb.style.width = '0%';
+            setTimeout(() => {
+                pb.style.transition = `width ${s.display_time}s linear`;
+                pb.style.width = '100%';
+            }, 50);
+
+            setTimeout(() => {
+                idx = (idx + 1) % sites.length;
+                if(idx === 0) sync(); else show();
+            }, s.display_time * 1000);
         }
 
-        loadConfig();
+        sync();
     </script>
 </body>
 </html>
