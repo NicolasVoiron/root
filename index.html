@@ -2,70 +2,70 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>FactoryCast Display</title>
+    <title>FactoryCast Public</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #000; overflow: hidden; }
-        #container { display: flex; width: 100vw; height: 100vh; justify-content: center; align-items: center; }
-        img { 
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
+        #viewer { display: flex; width: 100vw; height: 100vh; justify-content: center; align-items: center; }
+        .pane { 
             height: 100vh; 
             flex: 1; 
-            /* ÉTIRÉ MAIS PROPORTIONNEL */
+            /* PROPORTIONNEL SANS DÉFORMATION */
             object-fit: contain; 
-            background: black;
+            background: #000;
         }
-        #progress { position: fixed; bottom: 0; left: 0; height: 4px; background: #3dcd58; width: 0%; z-index: 10; }
-        #label { position: fixed; bottom: 10px; right: 10px; color: rgba(255,255,255,0.2); font-family: sans-serif; font-size: 10px; }
+        #pb { position: fixed; bottom: 0; left: 0; height: 4px; background: #3dcd58; width: 0%; z-index: 100; }
+        #info { position: fixed; bottom: 10px; right: 15px; color: rgba(255,255,255,0.3); font-size: 11px; }
     </style>
 </head>
 <body>
-    <div id="container"></div>
-    <div id="progress"></div>
-    <div id="label">Chargement...</div>
+    <div id="viewer"></div>
+    <div id="pb"></div>
+    <div id="info">Sync...</div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const canal = params.get('canal') || 'point_1';
         let sites = [], idx = 0;
 
-        async function sync() {
+        async function load() {
             try {
-                const r = await fetch(`config.json?nocache=${Date.now()}`);
+                const r = await fetch(`config.json?t=${Date.now()}`);
                 const d = await r.json();
                 sites = d.channels[canal].sites;
-                show();
-            } catch(e) { setTimeout(sync, 5000); }
+                render();
+            } catch(e) { setTimeout(load, 5000); }
         }
 
-        function show() {
+        function render() {
             if (!sites.length) return;
             const s = sites[idx];
-            const div = document.getElementById('container');
-            const pb = document.getElementById('progress');
+            const v = document.getElementById('viewer');
+            const p = document.getElementById('pb');
             
-            div.innerHTML = '';
+            v.innerHTML = '';
             for(let i=0; i<s.split; i++) {
                 const img = document.createElement('img');
-                // ANTI-CACHE AGRESSIF
+                img.className = 'pane';
+                // CACHE BUSTING : ?v=timestamp pour forcer le rafraîchissement
                 img.src = `docs/screens/${canal}_${idx}_p${i}.png?v=${Date.now()}`;
-                div.appendChild(img);
+                v.appendChild(img);
             }
 
-            document.getElementById('label').innerText = `${canal.toUpperCase()} | MàJ: ${s.last_update_str || '--'}`;
+            document.getElementById('info').innerText = `Point: ${canal} | MàJ: ${s.last_update_str || '--'}`;
             
-            // Animation Progress Bar
-            pb.style.transition = 'none'; pb.style.width = '0%';
+            p.style.transition = 'none'; p.style.width = '0%';
             setTimeout(() => {
-                pb.style.transition = `width ${s.display_time}s linear`;
-                pb.style.width = '100%';
+                p.style.transition = `width ${s.display_time}s linear`;
+                p.style.width = '100%';
             }, 50);
 
             setTimeout(() => {
                 idx = (idx + 1) % sites.length;
-                if(idx === 0) sync(); else show();
+                if(idx === 0) load(); else render();
             }, s.display_time * 1000);
         }
 
-        sync();
+        load();
     </script>
 </body>
 </html>
